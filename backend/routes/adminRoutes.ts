@@ -33,7 +33,7 @@ export default (app: Application): void => {
     app.get('/admin/getAttendance', authenticateToken, isAdmin, getAttendance);
     // app.get('/admin/getAttendance', getAttendance);
 
-    app.post('/admin/addAttendance', authenticateToken, isAdmin, updateAttendance);
+    app.post('/admin/addAttendance', authenticateToken, isAdmin, addAttendance);
     // app.post('/admin/addAttendance', addAttendance);
 
     app.put('/admin/updateAttendance', authenticateToken, isAdmin, updateAttendance);
