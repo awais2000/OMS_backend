@@ -3,11 +3,10 @@
   "version": "1.0.0",
   "description": "Backend for the office management system",
   "main": "server.ts",
-  "scripts": {
-    "dev": "nodemon --exec ts-node server.ts",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node dist/server.js"
-  },
+  "scripts": { 
+  "start": "node dist/server.js",
+  "dev": "ts-node-dev --respawn server.ts"
+},
   "author": "Technic Mentors",
   "license": "ISC",
   "dependencies": {
