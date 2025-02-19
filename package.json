@@ -1,0 +1,9 @@
+{
+  "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.8",
+    "typescript": "^5.7.3"
+  },
+  "dependencies": {
+    "@types/nodemon": "^1.19.6"
+  }
+}
