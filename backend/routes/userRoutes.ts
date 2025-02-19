@@ -6,4 +6,3 @@ export default (app: Application): void => {
 }
 
 
-//this is user route

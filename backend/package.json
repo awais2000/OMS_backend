@@ -30,5 +30,11 @@
     "@types/node": "^22.13.4",
     "dotenv": "^16.4.7",
     "typescript": "^5.7.3"
-  }
+  },
+  
+  "engines": {
+  "node": "18.x",
+  "npm": "9.x"
+}
+
 }
