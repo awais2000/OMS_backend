@@ -43,4 +43,3 @@ export default (app: Application): void => {
     // app.patch('/admin/deleteAttendance/:id', deleteAttendance);
 };
 
-//sin1::tgsh7-1739958814948-5e6e7d0b934e

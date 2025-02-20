@@ -3,6 +3,8 @@ import bodyParser from "body-parser";
 import dotenv from "dotenv";
 import cors from "cors";
 import pool from "./database/db"; // Ensure this is correct
+import adminRoutes from "./routes/adminRoutes";
+import userRoutes from "./routes/userRoutes";
 
 const app: Application = express();
 const PORT: number = 3001;
@@ -31,11 +33,9 @@ pool.getConnection()
   });
 
 // Import Routes
-import adminRoutes from "./routes/adminRoutes";
-// import userRoutes from "./routes/userRoutes";
 
 adminRoutes(app);
-// userRoutes(app);
+userRoutes(app);
 
 // Start Server
 app.listen(PORT, () => {
