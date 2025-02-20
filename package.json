@@ -7,7 +7,6 @@
 
   "scripts": {
   "dev": "npx ts-node server.ts",
-  "build": "tsc",
   "start": "npx ts-node server.ts"
 },
   "author": "Technic Mentors",
