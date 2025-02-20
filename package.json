@@ -6,8 +6,8 @@
 
 
   "scripts": {
-  "dev": "npx ts-node server.ts",
-  "start": "npx ts-node server.ts"
+  "dev": "npx ts-node backend/server.ts",
+  "start": "npx ts-node backend/server.ts"
 },
   "author": "Technic Mentors",
   "license": "ISC",
