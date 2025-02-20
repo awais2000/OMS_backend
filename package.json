@@ -6,7 +6,6 @@
 
   "scripts": {
   "start": "nodemon server.ts",
-  "build": "tsc",
   "dev": "ts-node-dev --respawn server.ts"
 },
   "author": "Technic Mentors",
