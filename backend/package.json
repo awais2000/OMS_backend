@@ -4,9 +4,10 @@
   "description": "Backend for the office management system",
   "main": "server.ts",
   "scripts": {
-  "dev": "npx ts-node backend/server.ts",
-  "start": "npx ts-node backend/server.ts"
-},
+    "dev": "npx ts-node backend/server.ts",
+    "start": "npx ts-node backend/server.ts",
+     "postinstall": "npm rebuild bcrypt --build-from-source"
+  },
   "author": "Technic Mentors",
   "license": "ISC",
   "dependencies": {
