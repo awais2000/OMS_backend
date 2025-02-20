@@ -3,11 +3,10 @@
   "version": "1.0.0",
   "description": "Backend for the office management system",
   "main": "server.ts",
-
   "scripts": {
-  "start": "nodemon server.ts",
-  "dev": "ts-node-dev --respawn server.ts"
-},
+    "start": "nodemon server.ts",
+    "dev": "ts-node-dev --respawn server.ts"
+  },
   "author": "Technic Mentors",
   "license": "ISC",
   "dependencies": {
@@ -29,12 +28,11 @@
     "@types/multer": "^1.4.12",
     "@types/node": "^22.13.4",
     "dotenv": "^16.4.7",
+    "ts-node": "^10.9.2",
     "typescript": "^5.7.3"
   },
-
   "engines": {
-  "node": "18.x",
-  "npm": "9.x"
-}
-
+    "node": "18.x",
+    "npm": "9.x"
+  }
 }
