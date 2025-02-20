@@ -4,9 +4,10 @@
   "description": "Backend for the office management system",
   "main": "server.ts",
   "scripts": {
-    "start": "nodemon server.ts",
-    "dev": "ts-node-dev --respawn server.ts"
-  },
+  "dev": "nodemon backend/server.ts",
+  "build": "tsc",
+  "start": "node backend/dist/server.js"
+},
   "author": "Technic Mentors",
   "license": "ISC",
   "dependencies": {
