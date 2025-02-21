@@ -4,12 +4,12 @@ import pool from "../database/db"; // ✅ Import MySQL connection
 // 🛠 Get Attendance Function (Now Properly Checks User Existence)
 export const getAttendance = async (req: Request, res: Response) => {
     try {
-        const user_id= req.params.id; // ✅ Get user ID from URL
-        console.log(user_id);
+        const userId= req.params.id; // ✅ Get user ID from URL
+        console.log(userId);
         // ✅ Check if the user exists in the `login` table
         const [user]: any = await pool.query(
             "SELECT id, name, email FROM login WHERE id = ?",
-            [user_id]
+            [userId]
         );
 
         if (user.length === 0) {
@@ -19,8 +19,8 @@ export const getAttendance = async (req: Request, res: Response) => {
 
         // ✅ Fetch attendance records for the user
         const [attendance]: any = await pool.query(
-            "SELECT date, clockin, clockout FROM attendance WHERE user_id = ? ORDER BY date DESC",
-            [user_id]
+            "SELECT date, clockIn, clockOut FROM attendance WHERE userId = ? ORDER BY date DESC",
+            [userId]
         );
 
         if (attendance.length === 0) {
@@ -52,13 +52,13 @@ export const getAttendance = async (req: Request, res: Response) => {
 // 🛠 Mark Attendance Function (Handles Both Clock In & Clock Out + Auto Absent Marking)
 export const markAttendance = async (req: Request, res: Response): Promise<void> => {
     try {
-        const user_id = req.params.id;
-        console.log("User ID:", user_id);
+        const userId = req.params.id;
+        console.log("User ID:", userId);
 
         // ✅ Check if the user exists in the `login` table
         const [user]: any = await pool.query(
             "SELECT id FROM login WHERE id = ?",
-            [user_id]
+            [userId]
         );
 
         if (user.length === 0) {
@@ -68,15 +68,15 @@ export const markAttendance = async (req: Request, res: Response): Promise<void>
 
         // ✅ Check if the user has already clocked in today
         const [existingAttendance]: any = await pool.query(
-            "SELECT user_id, clockin, clockout FROM attendance WHERE user_id = ? AND date = CURDATE()",
-            [user_id]
+            "SELECT userId, clockIn, clockOut FROM attendance WHERE userId = ? AND date = CURDATE()",
+            [userId]
         );
 
         if (existingAttendance.length === 0) {
             // ✅ Check if the user missed attendance for the last 24 hours
             const [lastAttendance]: any = await pool.query(
-                "SELECT date FROM attendance WHERE user_id = ? ORDER BY date DESC LIMIT 1",
-                [user_id]
+                "SELECT date FROM attendance WHERE userId = ? ORDER BY date DESC LIMIT 1",
+                [userId]
             );
 
             if (lastAttendance.length > 0) {
@@ -90,20 +90,20 @@ export const markAttendance = async (req: Request, res: Response): Promise<void>
                 if (diffDays >= 1) {
                     // ✅ Mark user as absent for missing attendance
                     await pool.query(`
-                        INSERT INTO attendance (user_id, clockin, clockout, date, day, attendanceStatus)
+                        INSERT INTO attendance (userId, clockIn, clockOut, date, day, attendanceStatus)
                         VALUES (?, NULL, NULL, CURDATE() - INTERVAL 1 DAY, DAYNAME(CURDATE() - INTERVAL 1 DAY), 'Absent')
-                    `, [user_id]);
+                    `, [userId]);
                 }
             }
 
-            // ✅ User is clocking in for the first time today
+            // ✅ User is clockIng in for the first time today
             const query = `
                 INSERT INTO attendance (
-                    user_id, clockin, clockout, date, day, attendanceStatus)
+                    userId, clockIn, clockOut, date, day, attendanceStatus)
                     VALUES (?, CURRENT_TIMESTAMP(), NULL, CURDATE(), DAYNAME(CURDATE()), 'Present')
             `;
 
-            const values = [user_id];
+            const values = [userId];
             const [result]: any = await pool.query(query, values);
 
             res.status(201).json({
@@ -111,15 +111,15 @@ export const markAttendance = async (req: Request, res: Response): Promise<void>
                 attendanceId: result.insertId
             });
 
-        } else if (existingAttendance[0].clockout === null) {
-            // ✅ User is clocking out
+        } else if (existingAttendance[0].clockOut === null) {
+            // ✅ User is clockIng out
             const query = `
                 UPDATE attendance 
-                SET clockout = CURRENT_TIMESTAMP()
-                WHERE user_id = ? AND date = CURDATE()
+                SET clockOut = CURRENT_TIMESTAMP()
+                WHERE userId = ? AND date = CURDATE()
             `;
 
-            const values = [user_id];
+            const values = [userId];
             await pool.query(query, values);
 
             res.status(200).json({
@@ -140,8 +140,8 @@ export const markAttendance = async (req: Request, res: Response): Promise<void>
 };
 export const addLeave = async (req: Request, res: Response): Promise<void> => {
     try {
-        // ✅ Get `user_id` from authenticated user (via JWT token)
-        const user_id = req.params.id;
+        // ✅ Get `userId` from authenticated user (via JWT token)
+        const userId = req.params.id;
 
         const { attendanceStatus, leaveReason } = req.body;
 
@@ -154,12 +154,12 @@ export const addLeave = async (req: Request, res: Response): Promise<void> => {
         // ✅ Set date to today
         const date = new Date().toISOString().split("T")[0]; // Format YYYY-MM-DD
 
-        console.log("Received Data:", user_id, attendanceStatus, date, leaveReason);
+        console.log("Received Data:", userId, attendanceStatus, date, leaveReason);
 
         // ✅ Check if user has already submitted a leave request for today
         const [existingLeave]: any = await pool.query(
-            "SELECT COUNT(*) AS leaveCount FROM attendance WHERE user_id = ? AND date = CURDATE() AND attendanceStatus = 'Leave'",
-            [user_id]
+            "SELECT COUNT(*) AS leaveCount FROM attendance WHERE userId = ? AND date = CURDATE() AND attendanceStatus = 'Leave'",
+            [userId]
         );
 
         if (existingLeave[0].leaveCount > 0) {
@@ -169,19 +169,19 @@ export const addLeave = async (req: Request, res: Response): Promise<void> => {
 
         // ✅ SQL Query (Insert into `attendance` table with automatic current day)
         const query = `
-            INSERT INTO attendance (user_id, date, day, attendanceStatus, leaveReason, leaveApprStatus)
+            INSERT INTO attendance (userId, date, day, attendanceStatus, leaveReason, leaveApprovalStatus)
             VALUES (?, CURDATE(), DAYNAME(CURDATE()), ?, ?, 'Pending')
         `;
 
-        const values = [user_id, attendanceStatus, leaveReason];
+        const values = [userId, attendanceStatus, leaveReason];
 
         // ✅ Execute the query
         const [result]: any = await pool.query(query, values);
 
         // ✅ Fetch updated leave records for the frontend
         const [updatedLeaves]: any = await pool.query(
-            "SELECT * FROM attendance WHERE user_id = ? ORDER BY date DESC",
-            [user_id]
+            "SELECT * FROM attendance WHERE userId = ? ORDER BY date DESC",
+            [userId]
         );
 
         // ✅ Send success response with updated leave data

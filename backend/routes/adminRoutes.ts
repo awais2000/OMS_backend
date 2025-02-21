@@ -1,5 +1,5 @@
 import { Application } from "express";
-import { getAllUsers, login, addUser, updateUser, deleteUser, getAllCust, addCustInfo, updateCust, deleteCust, getAttendance, addAttendance, updateAttendance, deleteAttendance, getUsersLeaves, authorizeLeaves } from "../controllers/adminController";
+import { getAllUsers, login, addUser, updateUser, deleteUser, getAllCustomer, addCustomerInfo, updateCustomer, deleteCustomer, getAttendance, addAttendance, updateAttendance, deleteAttendance, getUsersLeaves, authorizeLeaves } from "../controllers/adminController";
 import { authenticateToken, isAdmin } from "../middleware/middleware";
 import { upload } from "../middleware/uploadMiddleware"; 
 
@@ -19,15 +19,15 @@ export default (app: Application): void => {
     // app.delete("/admin/deleteUser/:id",  deleteUser);
 
     //adding Customer Routes:
-    app.get('/admin/getAllCust', authenticateToken, isAdmin, getAllCust);
-    // app.get('/admin/getAllCust', getAllCust);
+    app.get('/admin/getAllCustomer', authenticateToken, isAdmin, getAllCustomer);
+    // app.get('/admin/getAllCustomer', getAllCustomer);
 
-    app.post('/admin/addCustInfo', authenticateToken, isAdmin, addCustInfo);
-    // app.post('/admin/addCustInfo', addCustInfo);
+    app.post('/admin/addCustomerInfo', authenticateToken, isAdmin, addCustomerInfo);
+    // app.post('/admin/addCustomerInfo', addCustomerInfo);
 
-    app.put('/admin/updateCust/:id', authenticateToken, isAdmin, updateCust);
+    app.put('/admin/updateCustomer/:id', authenticateToken, isAdmin, updateCustomer);
 
-    app.delete('/admin/deleteCust/:id', authenticateToken, isAdmin, deleteCust);
+    app.delete('/admin/deleteCustomer/:id', authenticateToken, isAdmin, deleteCustomer);
 
     //for attendance
     app.get('/admin/getAttendance', authenticateToken, isAdmin, getAttendance);
@@ -43,7 +43,7 @@ export default (app: Application): void => {
     // app.patch('/admin/deleteAttendance/:id', deleteAttendance);
 
     // app.get('/admin/getUsersLeaves', authenticateToken, isAdmin,  getUsersLeaves);
-    app.get('/admin/getUsersLeaves', authenticateToken, isAdmin, getUsersLeaves);
+    app.get('/admin/getUsersLeaves',  getUsersLeaves);
 
     app.put('/admin/authorizeLeaves/:id', authenticateToken, isAdmin, authorizeLeaves);
 };

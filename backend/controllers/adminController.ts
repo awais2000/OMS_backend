@@ -80,7 +80,7 @@ export const addUser = async (req: Request, res: Response): Promise<void> => {
 
         // ✅ Insert user into MySQL database with hashed password & image path
         const query = `
-            INSERT INTO login (name, email, password, contact, CNIC, address, date, role, image)
+            INSERT INTO login (name, email, password, contact, cnic, address, date, role, image)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
         const values = [name, email, hashedPassword, contact, cnic, address, date, role, image];
@@ -106,7 +106,7 @@ export const addUser = async (req: Request, res: Response): Promise<void> => {
 export const updateUser = async (req: Request, res: Response): Promise<void> => {
     try {
         const { id } = req.params;  // Get user ID from URL
-        const { name, email, contact, CNIC, address, role } = req.body;
+        const { name, email, contact, cnic, address, role } = req.body;
         const newimage = req.file ? req.file.path : null; // ✅ Store new image if uploaded
 
         // ✅ Check if user exists
@@ -132,10 +132,10 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
         // ✅ Update user in MySQL database
         const query = `
             UPDATE login 
-            SET name = ?, email = ?, contact = ?, CNIC = ?, address = ?, role = ?, image = ? 
+            SET name = ?, email = ?, contact = ?, cnic = ?, address = ?, role = ?, image = ? 
             WHERE id = ?
         `;
-        const values = [name, email, contact, CNIC, address, role, imagePath, id];
+        const values = [name, email, contact, cnic, address, role, imagePath, id];
 
         const [result]: any = await pool.query(query, values);
         console.log([result]);
@@ -179,7 +179,7 @@ export const deleteUser = async (req: Request, res: Response) => {
 
 
 // 🛠 Get All Customers Function
-export const getAllCust = async (req: Request, res: Response): Promise<void> => {
+export const getAllCustomer = async (req: Request, res: Response): Promise<void> => {
     try {
         // ✅ Fetch all customers from MySQL
         const [customers]: any = await pool.query("SELECT * FROM customers");
@@ -206,7 +206,7 @@ export const getAllCust = async (req: Request, res: Response): Promise<void> => 
 
 
 // 🛠 Add Customer Function
-export const addCustInfo = async (req: Request, res: Response): Promise<void> => {
+export const addCustomerInfo = async (req: Request, res: Response): Promise<void> => {
     try {
         const { customerName, customerAddress, customerContact, companyName, companyAddress } = req.body;
 
@@ -241,7 +241,7 @@ export const addCustInfo = async (req: Request, res: Response): Promise<void> =>
 
 
 // 🛠 Update Customer Function
-export const updateCust = async (req: Request, res: Response): Promise<void> => {
+export const updateCustomer = async (req: Request, res: Response): Promise<void> => {
     try {
         const { id } = req.params; // Get customer ID from URL params
         const { customerName, customerAddress, customerContact, companyName, companyAddress } = req.body;
@@ -289,7 +289,7 @@ export const updateCust = async (req: Request, res: Response): Promise<void> => 
 };
 
 
-export const deleteCust = async (req: Request, res: Response): Promise<void> => {
+export const deleteCustomer = async (req: Request, res: Response): Promise<void> => {
     try {
         const { id } = req.params;  // Get user ID from URL
 
@@ -316,7 +316,7 @@ export const deleteCust = async (req: Request, res: Response): Promise<void> => 
 // 🛠 Get Attendance Function
 export const getAttendance = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { user_id } = req.params; // ✅ Get user ID from URL
+        const { userId } = req.params; // ✅ Get user ID from URL
 
         // ✅ Check if user exists
         const [user]: any = await pool.query("SELECT * FROM login");
@@ -324,7 +324,7 @@ export const getAttendance = async (req: Request, res: Response): Promise<void> 
         // ✅ Fetch attendance records for the user
         const [attendance]: any = await pool.query(
             "SELECT * FROM attendance",
-            [user_id]
+            [userId]
         );
 
         if (attendance.length === 0) {
@@ -351,10 +351,10 @@ export const addAttendance = async (req: Request, res: Response): Promise<void> 
     try {
         // Extract data from the request body
         const {
-            user_id,
+            userId,
             date,
-            clockin,
-            clockout,
+            clockIn,
+            clockOut,
             day,
             status,
             attendanceStatus,
@@ -364,10 +364,10 @@ export const addAttendance = async (req: Request, res: Response): Promise<void> 
         // SQL query to insert attendance data into the table
         const query = `
             INSERT INTO attendance (
-                user_id,
+                userId,
                 date,
-                clockin,
-                clockout,
+                clockIn,
+                clockOut,
                 day,
                 status,
                 attendanceStatus,
@@ -377,10 +377,10 @@ export const addAttendance = async (req: Request, res: Response): Promise<void> 
 
         // Execute the query
         const [result]: any = await pool.query(query, [
-            user_id,
+            userId,
             date,
-            clockin,
-            clockout,
+            clockIn,
+            clockOut,
             day,
             status,
             attendanceStatus,
@@ -401,10 +401,10 @@ export const updateAttendance = async (req: Request, res: Response): Promise<voi
     try {
         // Extract data from the request body
         const {
-            user_id,
+            userId,
             date,
-            clockin,
-            clockout,
+            clockIn,
+            clockOut,
             day,
             status,
             attendanceStatus,
@@ -418,10 +418,10 @@ export const updateAttendance = async (req: Request, res: Response): Promise<voi
         const query = `
             UPDATE attendance
             SET
-                user_id = ?,
+                userId = ?,
                 date = ?,
-                clockin = ?,
-                clockout = ?,
+                clockIn = ?,
+                clockOut = ?,
                 day = ?,
                 status = ?,
                 attendanceStatus = ?,
@@ -431,10 +431,10 @@ export const updateAttendance = async (req: Request, res: Response): Promise<voi
 
         // Execute the query with the values
         const [result]: any = await pool.query(query, [
-            user_id,
+            userId,
             date,
-            clockin,
-            clockout,
+            clockIn,
+            clockOut,
             day,
             status,
             attendanceStatus,
@@ -467,8 +467,8 @@ export const deleteAttendance = async (req: Request, res: Response): Promise<voi
             UPDATE attendance
             SET
                 status = 'N',
-                clockin = NULL,
-                clockout = NULL,
+                clockIn = NULL,
+                clockOut = NULL,
                 day = NULL,
                 attendanceStatus = NULL,
                 leaveReason = NULL
@@ -498,15 +498,15 @@ export const getUsersLeaves = async (req: Request, res: Response): Promise<void>
         // ✅ SQL Query to Fetch Attendance with User Names
         const query = `
             SELECT 
-                a.user_id,
+                a.userId,
                 l.name AS user_name,
                 a.date,
                 a.day,
                 a.attendanceStatus,
                 a.leaveReason,
-                a.leaveApprStatus
+                a.leaveApprovalStatus
             FROM attendance a
-            JOIN login l ON a.user_id = l.id
+            JOIN login l ON a.userId = l.id
             ORDER BY a.date DESC;
         `;
 
@@ -534,18 +534,18 @@ export const getUsersLeaves = async (req: Request, res: Response): Promise<void>
 export const authorizeLeaves = async (req: Request, res: Response): Promise<void> => {
     try {
         // ✅ Get leave request ID from URL params
-        const user_id = req.params.id;
-        console.log(user_id);
+        const userId = req.params.id;
+        console.log(userId);
         // ✅ Get updated fields from request body
-        const { attendanceStatus, date, leaveReason, leaveApprStatus } = req.body;
+        const { attendanceStatus, date, leaveReason, leaveApprovalStatus } = req.body;
 
-        console.log("Updating Leave Request:", user_id, attendanceStatus, date, leaveReason, leaveApprStatus);
+        console.log("Updating Leave Request:", userId, attendanceStatus, date, leaveReason, leaveApprovalStatus);
 
 
         // ✅ Check if the leave request exists
         const [existingLeave]: any = await pool.query(
-            "SELECT * FROM attendance WHERE user_id = ?",
-            [user_id]
+            "SELECT * FROM attendance WHERE userId = ?",
+            [userId]
         );
 
         if (existingLeave.length === 0) {
@@ -556,19 +556,19 @@ export const authorizeLeaves = async (req: Request, res: Response): Promise<void
         // ✅ SQL Query to Update Leave Request
         const query = `
             UPDATE attendance
-            SET attendanceStatus = ?, date = ?, leaveReason = ?, leaveApprStatus = ?
-            WHERE user_id = ?
+            SET attendanceStatus = ?, date = ?, leaveReason = ?, leaveApprovalStatus = ?
+            WHERE userId = ?
         `;
 
-        const values = [attendanceStatus, date, leaveReason, leaveApprStatus, user_id];
+        const values = [attendanceStatus, date, leaveReason, leaveApprovalStatus, userId];
 
         // ✅ Execute the update query
         const [result]: any = await pool.query(query, values);
 
         // ✅ Send success response
         res.status(200).json({
-            msg: `Leave request ${user_id} has been updated successfully.`,
-            updatedLeave: { user_id, attendanceStatus, date, leaveReason, leaveApprStatus },
+            msg: `Leave request ${userId} has been updated successfully.`,
+            updatedLeave: { userId, attendanceStatus, date, leaveReason, leaveApprovalStatus },
             result: result
         });
 
