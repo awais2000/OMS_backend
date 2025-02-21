@@ -491,3 +491,89 @@ export const deleteAttendance = async (req: Request, res: Response): Promise<voi
     }
 };
 
+
+//Getting the Leave Requests:
+export const getUsersLeaves = async (req: Request, res: Response): Promise<void> => {
+    try {
+        // ✅ SQL Query to Fetch Attendance with User Names
+        const query = `
+            SELECT 
+                a.user_id,
+                l.name AS user_name,
+                a.date,
+                a.day,
+                a.attendanceStatus,
+                a.leaveReason,
+                a.leaveApprStatus
+            FROM attendance a
+            JOIN login l ON a.user_id = l.id
+            ORDER BY a.date DESC;
+        `;
+
+        const [attendance]: any = await pool.query(query);
+
+        if (attendance.length === 0) {
+            res.status(404).json({ msg: "No attendance records found" });
+            return;
+        }
+
+        // ✅ Send attendance records with user names
+        res.status(200).json({
+            msg: "Attendance records fetched successfully",
+            attendance: attendance
+        });
+
+    } catch (error) {
+        console.error("❌ Error fetching attendance:", error);
+        res.status(500).json({ msg: "Internal Server Error" });
+    }
+};
+
+
+
+export const authorizeLeaves = async (req: Request, res: Response): Promise<void> => {
+    try {
+        // ✅ Get leave request ID from URL params
+        const user_id = req.params.id;
+        console.log(user_id);
+        // ✅ Get updated fields from request body
+        const { attendanceStatus, date, leaveReason, leaveApprStatus } = req.body;
+
+        console.log("Updating Leave Request:", user_id, attendanceStatus, date, leaveReason, leaveApprStatus);
+
+
+        // ✅ Check if the leave request exists
+        const [existingLeave]: any = await pool.query(
+            "SELECT * FROM attendance WHERE user_id = ?",
+            [user_id]
+        );
+
+        if (existingLeave.length === 0) {
+            res.status(404).json({ msg: "Leave request not found!" });
+            return;
+        }
+
+        // ✅ SQL Query to Update Leave Request
+        const query = `
+            UPDATE attendance
+            SET attendanceStatus = ?, date = ?, leaveReason = ?, leaveApprStatus = ?
+            WHERE user_id = ?
+        `;
+
+        const values = [attendanceStatus, date, leaveReason, leaveApprStatus, user_id];
+
+        // ✅ Execute the update query
+        const [result]: any = await pool.query(query, values);
+
+        // ✅ Send success response
+        res.status(200).json({
+            msg: `Leave request ${user_id} has been updated successfully.`,
+            updatedLeave: { user_id, attendanceStatus, date, leaveReason, leaveApprStatus },
+            result: result
+        });
+
+    } catch (error) {
+        console.error("❌ Error updating leave request:", error);
+        res.status(500).json({ msg: "Internal Server Error" });
+    }
+};

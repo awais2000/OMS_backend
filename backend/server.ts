@@ -38,8 +38,8 @@ adminRoutes(app);
 userRoutes(app);
 
 // Start Server
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
+app.listen(PORT,"192.168.1.15", () => {
+  console.log(`🚀 Server running on http://192.168.1.15:${PORT}`);
 });
 
 

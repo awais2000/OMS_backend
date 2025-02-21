@@ -1,5 +1,5 @@
 import { Application } from "express";
-import { getAllUsers, login, addUser, updateUser, deleteUser, getAllCust, addCustInfo, updateCust, deleteCust, getAttendance, addAttendance, updateAttendance, deleteAttendance } from "../controllers/adminController";
+import { getAllUsers, login, addUser, updateUser, deleteUser, getAllCust, addCustInfo, updateCust, deleteCust, getAttendance, addAttendance, updateAttendance, deleteAttendance, getUsersLeaves, authorizeLeaves } from "../controllers/adminController";
 import { authenticateToken, isAdmin } from "../middleware/middleware";
 import { upload } from "../middleware/uploadMiddleware"; 
 
@@ -36,10 +36,15 @@ export default (app: Application): void => {
     app.post('/admin/addAttendance', authenticateToken, isAdmin, addAttendance);
     // app.post('/admin/addAttendance', addAttendance);
 
-    app.put('/admin/updateAttendance', authenticateToken, isAdmin, updateAttendance);
+    app.put('/admin/updateAttendance/:id', authenticateToken, isAdmin, updateAttendance);
     // app.put('/admin/updateAttendance/:id', updateAttendance);
 
-    app.delete('/admin/deleteAttendance', authenticateToken, isAdmin, deleteAttendance);
+    app.delete('/admin/deleteAttendance/:id', authenticateToken, isAdmin, deleteAttendance);
     // app.patch('/admin/deleteAttendance/:id', deleteAttendance);
+
+    // app.get('/admin/getUsersLeaves', authenticateToken, isAdmin,  getUsersLeaves);
+    app.get('/admin/getUsersLeaves', authenticateToken, isAdmin, getUsersLeaves);
+
+    app.put('/admin/authorizeLeaves/:id', authenticateToken, isAdmin, authorizeLeaves);
 };
 

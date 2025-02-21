@@ -55,8 +55,6 @@ export const markAttendance = async (req: Request, res: Response): Promise<void>
         const user_id = req.params.id;
         console.log("User ID:", user_id);
 
-        const time = '2025-02-22';
-
         // ✅ Check if the user exists in the `login` table
         const [user]: any = await pool.query(
             "SELECT id FROM login WHERE id = ?",
@@ -101,8 +99,8 @@ export const markAttendance = async (req: Request, res: Response): Promise<void>
             // ✅ User is clocking in for the first time today
             const query = `
                 INSERT INTO attendance (
-                    user_id, clockin, clockout, date, day, attendanceStatus
-                ) VALUES (?, CURRENT_TIMESTAMP(), NULL, CURDATE(), DAYNAME(CURDATE()), 'Present')
+                    user_id, clockin, clockout, date, day, attendanceStatus)
+                    VALUES (?, CURRENT_TIMESTAMP(), NULL, CURDATE(), DAYNAME(CURDATE()), 'Present')
             `;
 
             const values = [user_id];
@@ -140,5 +138,62 @@ export const markAttendance = async (req: Request, res: Response): Promise<void>
         res.status(500).json({ msg: "Internal Server Error" });
     }
 };
+export const addLeave = async (req: Request, res: Response): Promise<void> => {
+    try {
+        // ✅ Get `user_id` from authenticated user (via JWT token)
+        const user_id = req.params.id;
 
+        const { attendanceStatus, leaveReason } = req.body;
 
+        // ✅ Ensure required fields are present
+        if (!attendanceStatus || !leaveReason) {
+            res.status(400).json({ msg: "Provide all the required information!" });
+            return;
+        }
+
+        // ✅ Set date to today
+        const date = new Date().toISOString().split("T")[0]; // Format YYYY-MM-DD
+
+        console.log("Received Data:", user_id, attendanceStatus, date, leaveReason);
+
+        // ✅ Check if user has already submitted a leave request for today
+        const [existingLeave]: any = await pool.query(
+            "SELECT COUNT(*) AS leaveCount FROM attendance WHERE user_id = ? AND date = CURDATE() AND attendanceStatus = 'Leave'",
+            [user_id]
+        );
+
+        if (existingLeave[0].leaveCount > 0) {
+            res.status(400).json({ msg: "You have already submitted a leave request for today." });
+            return;
+        }
+
+        // ✅ SQL Query (Insert into `attendance` table with automatic current day)
+        const query = `
+            INSERT INTO attendance (user_id, date, day, attendanceStatus, leaveReason, leaveApprStatus)
+            VALUES (?, CURDATE(), DAYNAME(CURDATE()), ?, ?, 'Pending')
+        `;
+
+        const values = [user_id, attendanceStatus, leaveReason];
+
+        // ✅ Execute the query
+        const [result]: any = await pool.query(query, values);
+
+        // ✅ Fetch updated leave records for the frontend
+        const [updatedLeaves]: any = await pool.query(
+            "SELECT * FROM attendance WHERE user_id = ? ORDER BY date DESC",
+            [user_id]
+        );
+
+        // ✅ Send success response with updated leave data
+        res.status(201).json({
+            status: 201,
+            msg: "Leave added successfully",
+            leaveId: result.insertId,
+            leaves: updatedLeaves // ✅ Send all leave records to frontend
+        });
+
+    } catch (error) {
+        console.error("❌ Error adding leave:", error);
+        res.status(500).json({ msg: "Internal Server Error" });
+    }
+};
