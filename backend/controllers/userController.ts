@@ -13,7 +13,7 @@ export const getAttendance = async (req: Request, res: Response) => {
         );
 
         if (user.length === 0) {
-            res.status(404).json({ status: 404, msg: "User not found" });
+            res.status(404).json({ status: 404, message: "User not found" });
             return;
         }
 
@@ -24,14 +24,14 @@ export const getAttendance = async (req: Request, res: Response) => {
         );
 
         if (attendance.length === 0) {
-            res.status(404).json({ status: 404, msg: "No attendance records found" });
+            res.status(404).json({ status: 404, message: "No attendance records found" });
             return;
         }
 
         // ✅ Send attendance records
         res.status(200).json({
             status: 200,
-            msg: "Attendance records fetched successfully",
+            message: "Attendance records fetched successfully",
             user: {
                 id: user[0].id,
                 name: user[0].name,
@@ -42,7 +42,7 @@ export const getAttendance = async (req: Request, res: Response) => {
 
     } catch (error) {
         console.error("❌ Error fetching attendance:", error);
-        res.status(500).json({ status: 500, msg: "Internal Server Error" });
+        res.status(500).json({ status: 500, message: "Internal Server Error" });
     }
 };
 
@@ -62,7 +62,7 @@ export const markAttendance = async (req: Request, res: Response): Promise<void>
         );
 
         if (user.length === 0) {
-            res.status(404).json({ status: 404, msg: "User not found" });
+            res.status(404).json({ status: 404, message: "User not found" });
             return;
         }
 
@@ -107,7 +107,7 @@ export const markAttendance = async (req: Request, res: Response): Promise<void>
             const [result]: any = await pool.query(query, values);
 
             res.status(201).json({
-                msg: "Clock-in recorded successfully",
+                message: "Clock-in recorded successfully",
                 attendanceId: result.insertId
             });
 
@@ -123,19 +123,19 @@ export const markAttendance = async (req: Request, res: Response): Promise<void>
             await pool.query(query, values);
 
             res.status(200).json({
-                msg: "Clock-out recorded successfully"
+                message: "Clock-out recorded successfully"
             });
 
         } else {
             // ✅ User has already clocked in and clocked out today
             res.status(400).json({
-                msg: "You have already marked Attendance for today!"
+                message: "You have already marked Attendance for today!"
             });
         }
 
     } catch (error) {
         console.error("❌ Error marking attendance:", error);
-        res.status(500).json({ msg: "Internal Server Error" });
+        res.status(500).json({ message: "Internal Server Error" });
     }
 };
 export const addLeave = async (req: Request, res: Response): Promise<void> => {
@@ -147,7 +147,7 @@ export const addLeave = async (req: Request, res: Response): Promise<void> => {
 
         // ✅ Ensure required fields are present
         if (!attendanceStatus || !leaveReason) {
-            res.status(400).json({ msg: "Provide all the required information!" });
+            res.status(400).json({ message: "Provide all the required information!" });
             return;
         }
 
@@ -163,7 +163,7 @@ export const addLeave = async (req: Request, res: Response): Promise<void> => {
         );
 
         if (existingLeave[0].leaveCount > 0) {
-            res.status(400).json({ msg: "You have already submitted a leave request for today." });
+            res.status(400).json({ message: "You have already submitted a leave request for today." });
             return;
         }
 
@@ -187,13 +187,13 @@ export const addLeave = async (req: Request, res: Response): Promise<void> => {
         // ✅ Send success response with updated leave data
         res.status(201).json({
             status: 201,
-            msg: "Leave added successfully",
+            message: "Leave added successfully",
             leaveId: result.insertId,
             leaves: updatedLeaves // ✅ Send all leave records to frontend
         });
 
     } catch (error) {
         console.error("❌ Error adding leave:", error);
-        res.status(500).json({ msg: "Internal Server Error" });
+        res.status(500).json({ message: "Internal Server Error" });
     }
 };

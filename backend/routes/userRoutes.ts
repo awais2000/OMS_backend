@@ -7,8 +7,8 @@ export default (app: Application): void => {
 
     app.post('/users/markAttendance/:id',authenticateToken, markAttendance);
 
-    // app.post("/users/addLeave",authenticateToken,  addLeave);
-    app.post("/users/addLeave/:id",  addLeave);
+    app.post("/users/addLeave",authenticateToken,  addLeave);
+    // app.post("/users/addLeave/:id",  addLeave);
 }
 
 
