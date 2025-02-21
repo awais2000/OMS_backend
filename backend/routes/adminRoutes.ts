@@ -42,8 +42,8 @@ export default (app: Application): void => {
     app.delete('/admin/deleteAttendance/:id', authenticateToken, isAdmin, deleteAttendance);
     // app.patch('/admin/deleteAttendance/:id', deleteAttendance);
 
-    // app.get('/admin/getUsersLeaves', authenticateToken, isAdmin,  getUsersLeaves);
-    app.get('/admin/getUsersLeaves',  getUsersLeaves);
+    app.get('/admin/getUsersLeaves', authenticateToken, isAdmin,  getUsersLeaves);
+    // app.get('/admin/getUsersLeaves',  getUsersLeaves);
 
     app.put('/admin/authorizeLeaves/:id', authenticateToken, isAdmin, authorizeLeaves);
 };

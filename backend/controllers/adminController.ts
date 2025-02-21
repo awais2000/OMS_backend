@@ -16,14 +16,14 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         const [users]: any = await pool.query("SELECT * FROM login WHERE email = ?", [email]);
 
         if (users.length === 0) {
-            res.status(400).json({ status: 400, msg: "Invalid Username or Password" });
+            res.status(400).json({ status: 400, message: "Invalid Username or Password" });
             return;
         }
 
         const user = users[0];
 
         if (password !== user.password) {
-            res.status(400).json({ status: 400, msg: "Invalid Username or Password" });
+            res.status(400).json({ status: 400, message: "Invalid Username or Password" });
             return;
         }
 
@@ -36,14 +36,14 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
         res.json({
             status: 200,
-            msg: "Login Successful",
+            message: "Login Successful",
             user: { email: user.email, role: user.role },
             token  // ✅ Send token so admin can access multiple routes
         });
 
     } catch (error) {
         console.error("❌ Login Error:", error);
-        res.status(500).json({ status: 500, msg: "Internal Server Error" });
+        res.status(500).json({ status: 500, message: "Internal Server Error" });
     }
 };
 
@@ -70,7 +70,7 @@ export const addUser = async (req: Request, res: Response): Promise<void> => {
 
         // ✅ Ensure required fields are present
         if (!name || !email || !password || !cnic || !role) {
-            res.status(400).json({ status: 400, msg: "Missing required fields" });
+            res.status(400).json({ status: 400, message: "Missing required fields" });
             return;
         }
 
@@ -89,14 +89,14 @@ export const addUser = async (req: Request, res: Response): Promise<void> => {
 
         res.status(201).json({
             status: 201,
-            msg: "User added successfully",
+            message: "User added successfully",
             userId: result.insertId,
             imagePath: image  // ✅ Return uploaded file path
         });
 
     } catch (error) {
         console.error("❌ Error adding user:", error);
-        res.status(500).json({ status: 500, msg: "Internal Server Error" });
+        res.status(500).json({ status: 500, message: "Internal Server Error" });
     }
 };
 
@@ -112,7 +112,7 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
         // ✅ Check if user exists
         const [user]: any = await pool.query("SELECT * FROM login WHERE id = ?", [id]);
         if (user.length === 0) {
-            res.status(404).json({ status: 404, msg: "User not found" });
+            res.status(404).json({ status: 404, message: "User not found" });
             return;
         }
 
@@ -142,14 +142,14 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
         
         res.status(200).json({
             status: 200,
-            msg: "User updated successfully",
+            message: "User updated successfully",
             userId: id,
             imagePath
         });
 
     } catch (error) {
         console.error("❌ Error updating user:", error);
-        res.status(500).json({ status: 500, msg: "Internal Server Error" });
+        res.status(500).json({ status: 500, message: "Internal Server Error" });
     }
 };
 
@@ -164,14 +164,14 @@ export const deleteUser = async (req: Request, res: Response) => {
         const [result]: any = await pool.query(query, [id]);  // Pass `id` inside an array for parameterized query
 
         if (result.affectedRows > 0) {
-            res.json({ msg: "Customer deleted successfully" });
+            res.json({ message: "Customer deleted successfully" });
         } else {
-            res.status(404).json({ msg: "Customer not found" });
+            res.status(404).json({ message: "Customer not found" });
         }
 
     } catch (error) {
         console.error("❌ Error deleting customer:", error);
-        res.status(500).json({ msg: "Internal Server Error" });
+        res.status(500).json({ message: "Internal Server Error" });
     }
 };
 
@@ -186,20 +186,20 @@ export const getAllCustomer = async (req: Request, res: Response): Promise<void>
 
         // ✅ Check if customers exist
         if (customers.length === 0) {
-            res.status(404).json({ status: 404, msg: "No customers found" });
+            res.status(404).json({ status: 404, message: "No customers found" });
             return;
         }
 
         // ✅ Send response with customer data
         res.status(200).json({
             status: 200,
-            msg: "Customers fetched successfully",
+            message: "Customers fetched successfully",
             customers
         });
 
     } catch (error) {
         console.error("❌ Error fetching customers:", error);
-        res.status(500).json({ status: 500, msg: "Internal Server Error" });
+        res.status(500).json({ status: 500, message: "Internal Server Error" });
     }
 };
 
@@ -212,7 +212,7 @@ export const addCustomerInfo = async (req: Request, res: Response): Promise<void
 
         // ✅ Ensure required fields are present
         if (!customerName || !customerAddress || !customerContact || !companyName || !companyAddress) {
-            res.status(400).json({ status: 400, msg: "Missing required fields" });
+            res.status(400).json({ status: 400, message: "Missing required fields" });
             return;
         }
 
@@ -227,13 +227,13 @@ export const addCustomerInfo = async (req: Request, res: Response): Promise<void
 
         res.status(201).json({
             status: 201,
-            msg: "Customer added successfully",
+            message: "Customer added successfully",
             customerId: result.insertId
         });
 
     } catch (error) {
         console.error("❌ Error adding customer:", error);
-        res.status(500).json({ status: 500, msg: "Internal Server Error" });
+        res.status(500).json({ status: 500, message: "Internal Server Error" });
     }
 };
 
@@ -248,14 +248,14 @@ export const updateCustomer = async (req: Request, res: Response): Promise<void>
 
         // ✅ Ensure at least one field is provided for update
         if (!customerName && !customerAddress && !customerContact && !companyName && !companyAddress) {
-            res.status(400).json({ status: 400, msg: "No fields provided for update" });
+            res.status(400).json({ status: 400, message: "No fields provided for update" });
             return;
         }
 
         // ✅ Check if the customer exists
         const [existingCustomer]: any = await pool.query("SELECT * FROM customers WHERE id = ?", [id]);
         if (existingCustomer.length === 0) {
-            res.status(404).json({ status: 404, msg: "Customer not found" });
+            res.status(404).json({ status: 404, message: "Customer not found" });
             return;
         }
 
@@ -278,13 +278,13 @@ export const updateCustomer = async (req: Request, res: Response): Promise<void>
 
         res.status(200).json({
             status: 200,
-            msg: "Customer updated successfully",
+            message: "Customer updated successfully",
             updatedFields: updateFields
         });
 
     } catch (error) {
         console.error("❌ Error updating customer:", error);
-        res.status(500).json({ status: 500, msg: "Internal Server Error" });
+        res.status(500).json({ status: 500, message: "Internal Server Error" });
     }
 };
 
@@ -300,14 +300,14 @@ export const deleteCustomer = async (req: Request, res: Response): Promise<void>
         const [result]: any = await pool.query(query, [id]);  // Pass `id` inside an array for parameterized query
 
         if (result.affectedRows > 0) {
-            res.json({ msg: "Customer deleted successfully" });
+            res.json({ message: "Customer deleted successfully" });
         } else {
-            res.status(404).json({ msg: "Customer not found" });
+            res.status(404).json({ message: "Customer not found" });
         }
 
     } catch (error) {
         console.error("❌ Error deleting customer:", error);
-        res.status(500).json({ msg: "Internal Server Error" });
+        res.status(500).json({ message: "Internal Server Error" });
     }
 }
 
@@ -328,20 +328,20 @@ export const getAttendance = async (req: Request, res: Response): Promise<void> 
         );
 
         if (attendance.length === 0) {
-            res.status(404).json({ status: 404, msg: "No attendance records found" });
+            res.status(404).json({ status: 404, message: "No attendance records found" });
             return;
         }
 
         // ✅ Send attendance records
         res.status(200).json({
             status: 200,
-            msg: "Attendance records fetched successfully",
+            message: "Attendance records fetched successfully",
             user: attendance
         });
 
     } catch (error) {
         console.error("❌ Error fetching attendance:", error);
-        res.status(500).json({ status: 500, msg: "Internal Server Error" });
+        res.status(500).json({ status: 500, message: "Internal Server Error" });
     }
 };
 
@@ -388,10 +388,10 @@ export const addAttendance = async (req: Request, res: Response): Promise<void> 
         ]);
 
         // Send response with success message
-        res.status(201).json({ msg: "Attendance recorded successfully", attendanceId: result.insertId });
+        res.status(201).json({ message: "Attendance recorded successfully", attendanceId: result.insertId });
     } catch (error) {
         console.error("❌ Error adding attendance:", error);
-        res.status(500).json({ msg: "Internal Server Error" });
+        res.status(500).json({ message: "Internal Server Error" });
     }
 };
 
@@ -444,14 +444,14 @@ export const updateAttendance = async (req: Request, res: Response): Promise<voi
 
         // Check if the record was updated
         if (result.affectedRows > 0) {
-            res.json({ msg: "Attendance updated successfully" });
+            res.json({ message: "Attendance updated successfully" });
         } else {
-            res.status(404).json({ msg: "Attendance record not found" });
+            res.status(404).json({ message: "Attendance record not found" });
         }
 
     } catch (error) {
         console.error("❌ Error updating attendance:", error);
-        res.status(500).json({ msg: "Internal Server Error" });
+        res.status(500).json({ message: "Internal Server Error" });
     }
 };
 
@@ -480,14 +480,14 @@ export const deleteAttendance = async (req: Request, res: Response): Promise<voi
 
         // Check if the record was updated
         if (result.affectedRows > 0) {
-            res.json({ msg: "Attendance status updated successfully to 'N' and other fields nullified." });
+            res.json({ message: "Attendance status updated successfully to 'N' and other fields nullified." });
         } else {
-            res.status(404).json({ msg: "Attendance record not found" });
+            res.status(404).json({ message: "Attendance record not found" });
         }
 
     } catch (error) {
         console.error("❌ Error updating attendance:", error);
-        res.status(500).json({ msg: "Internal Server Error" });
+        res.status(500).json({ message: "Internal Server Error" });
     }
 };
 
@@ -513,19 +513,19 @@ export const getUsersLeaves = async (req: Request, res: Response): Promise<void>
         const [attendance]: any = await pool.query(query);
 
         if (attendance.length === 0) {
-            res.status(404).json({ msg: "No attendance records found" });
+            res.status(404).json({ message: "No attendance records found" });
             return;
         }
 
         // ✅ Send attendance records with user names
         res.status(200).json({
-            msg: "Attendance records fetched successfully",
+            message: "Attendance records fetched successfully",
             attendance: attendance
         });
 
     } catch (error) {
         console.error("❌ Error fetching attendance:", error);
-        res.status(500).json({ msg: "Internal Server Error" });
+        res.status(500).json({ message: "Internal Server Error" });
     }
 };
 
@@ -549,7 +549,7 @@ export const authorizeLeaves = async (req: Request, res: Response): Promise<void
         );
 
         if (existingLeave.length === 0) {
-            res.status(404).json({ msg: "Leave request not found!" });
+            res.status(404).json({ message: "Leave request not found!" });
             return;
         }
 
@@ -567,13 +567,13 @@ export const authorizeLeaves = async (req: Request, res: Response): Promise<void
 
         // ✅ Send success response
         res.status(200).json({
-            msg: `Leave request ${userId} has been updated successfully.`,
+            message: `Leave request ${userId} has been updated successfully.`,
             updatedLeave: { userId, attendanceStatus, date, leaveReason, leaveApprovalStatus },
             result: result
         });
 
     } catch (error) {
         console.error("❌ Error updating leave request:", error);
-        res.status(500).json({ msg: "Internal Server Error" });
+        res.status(500).json({ message: "Internal Server Error" });
     }
 };
