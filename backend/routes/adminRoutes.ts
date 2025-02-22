@@ -1,5 +1,5 @@
 import { Application } from "express";
-import { getAllUsers, login, addUser, updateUser, deleteUser, getAllCustomer, addCustomerInfo, updateCustomer, deleteCustomer, getAttendance, addAttendance, updateAttendance, deleteAttendance, getUsersLeaves, authorizeLeaves, configHolidays, getHolidays } from "../controllers/adminController";
+import { getAllUsers, login, addUser, updateUser, deleteUser, getAllCustomer, addCustomerInfo, updateCustomer, deleteCustomer, getAttendance, addAttendance, updateAttendance, deleteAttendance, getUsersLeaves, authorizeLeaves, configHolidays, getHolidays, withdrawEmployee } from "../controllers/adminController";
 import { authenticateToken, isAdmin } from "../middleware/middleware";
 import { upload } from "../middleware/uploadMiddleware"; 
 
@@ -51,11 +51,13 @@ export default (app: Application): void => {
     app.put('/admin/authorizeLeaves/:id', authenticateToken, isAdmin, authorizeLeaves);
     // app.put('/admin/authorizeLeaves/:id', authorizeLeaves);
 
-    // app.get('/admin/getHolidays', authenticateToken, isAdmin, getHolidays);
-    app.get('/admin/getHolidays', getHolidays);
+    app.get('/admin/getHolidays', authenticateToken, isAdmin, getHolidays);
+    // app.get('/admin/getHolidays', getHolidays);
 
-    // app.post('/admin/configHolidays', authenticateToken, isAdmin, configHolidays);
-    app.post('/admin/configHolidays', configHolidays);
+    app.post('/admin/configHolidays', authenticateToken, isAdmin, configHolidays);
+    // app.post('/admin/configHolidays', configHolidays);
+
+    app.post('/admin/withdrawEmployee', withdrawEmployee);
 
 };
 

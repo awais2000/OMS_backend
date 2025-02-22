@@ -651,7 +651,7 @@ export const configHolidays = async (req: Request, res: Response): Promise<void>
 
         // ✅ Ensure required fields are present
         if (!date || !holiday) {
-            res.status(400).json({ msg: "Provide both date and holiday name!" });
+            res.status(400).json({ message: "Provide both date and holiday name!" });
             return;
         }
 
@@ -667,14 +667,14 @@ export const configHolidays = async (req: Request, res: Response): Promise<void>
         // ✅ Send Success Response
         res.status(201).json({
             status: 201,
-            msg: "Holiday added successfully",
+            message: "Holiday added successfully",
            ...holidays[0]
         });
         
 
     } catch (error) {
         console.error("❌ Error adding holiday:", error);
-        res.status(500).json({ msg: "Internal Server Error" });
+        res.status(500).json({ message: "Internal Server Error" });
     }
 };
 
@@ -701,3 +701,45 @@ export const getHolidays = async (req: Request, res: Response): Promise<void> =>
         res.status(500).json({ status: 500, message: "Internal Server Error" });
     }
 }
+
+
+
+
+// 🛠 Withdraw Employee (POST Request)
+export const withdrawEmployee = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { employeeId, withdrawDate, withdrawStatus, withdrawReason } = req.body;
+
+        console.log("Withdraw Request Received:", { employeeId, withdrawDate, withdrawStatus, withdrawReason });
+
+        // ✅ Ensure required fields are present
+        if (!employeeId || !withdrawDate || !withdrawStatus || !withdrawReason) {
+            res.status(400).json({ message: "Provide all required fields!" });
+            return;
+        }
+
+        // ✅ Insert into `withdrawals` table
+        const insertQuery = `
+            INSERT INTO withdrawals (employeeId, withdrawDate, withdrawStatus, withdrawReason)
+            VALUES (?, ?, ?, ?)
+        `;
+        const values = [employeeId, withdrawDate, withdrawStatus, withdrawReason];
+
+        // ✅ Execute query
+        const [result]: any = await pool.query(insertQuery, values);
+
+        // ✅ Update `status` in `login` table to 'N'
+        const updateQuery = `UPDATE login SET status = 'N' WHERE id = ?`;
+        await pool.query(updateQuery, [employeeId]);
+
+        // ✅ Send success response
+        res.status(201).json({
+            status: 201,
+            message: "Employee withdrawn successfully",
+        });
+
+    } catch (error) {
+        console.error("❌ Error withdrawing employee:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
