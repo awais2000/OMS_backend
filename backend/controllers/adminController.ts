@@ -37,9 +37,16 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         res.json({
             status: 200,
             message: "Login Successful",
-            user: { email: user.email, role: user.role },
-            token  // ✅ Send token so admin can access multiple routes
+            token,
+            name: user.name,
+            email: user.email,
+            role: user.contact,
+            contact: user.contact,
+            cnic: user.cnic,
+            date: user.date,
+            image: user.image
         });
+
 
     } catch (error) {
         console.error("❌ Login Error:", error);
@@ -52,6 +59,11 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 // 🛠 Get All Users Function
 export const getAllUsers = async (req: Request, res: Response): Promise<void> => {
     try {
+        let page = parseInt(req.query.page as string) || 1;
+        let limit = parseInt(req.query.limit as string) || 10;
+        let offset = (page - 1) * limit; // ✅ Calculate the offset
+
+        console.log(`Fetching page ${page} with limit ${limit}`);
         const [rows]: any = await pool.query("SELECT * FROM login");
         res.json({ users: rows });
     } catch (error) {
@@ -90,7 +102,13 @@ export const addUser = async (req: Request, res: Response): Promise<void> => {
         res.status(201).json({
             status: 201,
             message: "User added successfully",
-            userId: result.insertId,
+            name: name,
+            email: email,
+            role: contact,
+            contact: contact,
+            address: address,
+            cnic: cnic,
+            date: date,
             imagePath: image  // ✅ Return uploaded file path
         });
 
@@ -144,7 +162,12 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
             status: 200,
             message: "User updated successfully",
             userId: id,
-            imagePath
+            name: name,
+            email: email,
+            role: contact,
+            contact: contact,
+            cnic: cnic,
+            address:address 
         });
 
     } catch (error) {
@@ -181,6 +204,11 @@ export const deleteUser = async (req: Request, res: Response) => {
 // 🛠 Get All Customers Function
 export const getAllCustomer = async (req: Request, res: Response): Promise<void> => {
     try {
+        let page = parseInt(req.query.page as string) || 1;
+        let limit = parseInt(req.query.limit as string) || 10;
+        let offset = (page - 1) * limit; // ✅ Calculate the offset
+
+        console.log(`Fetching page ${page} with limit ${limit}`);
         // ✅ Fetch all customers from MySQL
         const [customers]: any = await pool.query("SELECT * FROM customers");
 
@@ -194,7 +222,7 @@ export const getAllCustomer = async (req: Request, res: Response): Promise<void>
         res.status(200).json({
             status: 200,
             message: "Customers fetched successfully",
-            customers
+            ...customers[0] 
         });
 
     } catch (error) {
@@ -228,7 +256,12 @@ export const addCustomerInfo = async (req: Request, res: Response): Promise<void
         res.status(201).json({
             status: 201,
             message: "Customer added successfully",
-            customerId: result.insertId
+            customerId: result.insertId,
+            customerName: customerName,
+            customerAddress: customerAddress,
+            customerContact: customerContact,
+            companyName: companyName,
+            companyAddress: companyAddress
         });
 
     } catch (error) {
@@ -279,7 +312,12 @@ export const updateCustomer = async (req: Request, res: Response): Promise<void>
         res.status(200).json({
             status: 200,
             message: "Customer updated successfully",
-            updatedFields: updateFields
+            customerId: result.insertId,
+            customerName: customerName,
+            customerAddress: customerAddress,
+            customerContact: customerContact,
+            companyName: companyName,
+            companyAddress: companyAddress
         });
 
     } catch (error) {
@@ -316,6 +354,11 @@ export const deleteCustomer = async (req: Request, res: Response): Promise<void>
 // 🛠 Get Attendance Function
 export const getAttendance = async (req: Request, res: Response): Promise<void> => {
     try {
+        let page = parseInt(req.query.page as string) || 1;
+        let limit = parseInt(req.query.limit as string) || 10;
+        let offset = (page - 1) * limit; // ✅ Calculate the offset
+
+        console.log(`Fetching page ${page} with limit ${limit}`);
         const { userId } = req.params; // ✅ Get user ID from URL
 
         // ✅ Check if user exists
@@ -336,7 +379,7 @@ export const getAttendance = async (req: Request, res: Response): Promise<void> 
         res.status(200).json({
             status: 200,
             message: "Attendance records fetched successfully",
-            user: attendance
+            ...attendance[0]
         });
 
     } catch (error) {
@@ -387,8 +430,15 @@ export const addAttendance = async (req: Request, res: Response): Promise<void> 
             leaveReason
         ]);
 
+        const [attendance]: any = await pool.query(
+            "SELECT * FROM attendance WHERE userId = ?",
+            [userId]
+        );
+
         // Send response with success message
-        res.status(201).json({ message: "Attendance recorded successfully", attendanceId: result.insertId });
+        res.status(201).json({ message: "Attendance recorded successfully",
+        ...attendance[0]
+     });
     } catch (error) {
         console.error("❌ Error adding attendance:", error);
         res.status(500).json({ message: "Internal Server Error" });
@@ -401,7 +451,6 @@ export const updateAttendance = async (req: Request, res: Response): Promise<voi
     try {
         // Extract data from the request body
         const {
-            userId,
             date,
             clockIn,
             clockOut,
@@ -412,13 +461,12 @@ export const updateAttendance = async (req: Request, res: Response): Promise<voi
         } = req.body;
 
         // Extract the attendance ID from the URL parameters
-        const { id } = req.params;  // Assumes the ID is passed as a URL parameter
+        const userId = req.params.id;  // Assumes the ID is passed as a URL parameter
 
         // SQL query to update attendance data for the given ID
         const query = `
             UPDATE attendance
             SET
-                userId = ?,
                 date = ?,
                 clockIn = ?,
                 clockOut = ?,
@@ -426,12 +474,12 @@ export const updateAttendance = async (req: Request, res: Response): Promise<voi
                 status = ?,
                 attendanceStatus = ?,
                 leaveReason = ?
-            WHERE id = ?
+            WHERE userId = ?
         `;
 
         // Execute the query with the values
         const [result]: any = await pool.query(query, [
-            userId,
+
             date,
             clockIn,
             clockOut,
@@ -439,12 +487,20 @@ export const updateAttendance = async (req: Request, res: Response): Promise<voi
             status,
             attendanceStatus,
             leaveReason,
-            id
+            userId
         ]);
+
+        const [attendance]: any = await pool.query(
+            "SELECT * FROM attendance WHERE userId = ?",
+            [userId]
+        );
 
         // Check if the record was updated
         if (result.affectedRows > 0) {
-            res.json({ message: "Attendance updated successfully" });
+            res.json({ message: "Attendance updated successfully",
+                ...attendance[0]
+             })
+
         } else {
             res.status(404).json({ message: "Attendance record not found" });
         }
@@ -495,6 +551,12 @@ export const deleteAttendance = async (req: Request, res: Response): Promise<voi
 //Getting the Leave Requests:
 export const getUsersLeaves = async (req: Request, res: Response): Promise<void> => {
     try {
+
+        let page = parseInt(req.query.page as string) || 1;
+        let limit = parseInt(req.query.limit as string) || 10;
+        let offset = (page - 1) * limit; // ✅ Calculate the offset
+
+        console.log(`Fetching page ${page} with limit ${limit}`);
         // ✅ SQL Query to Fetch Attendance with User Names
         const query = `
             SELECT 
@@ -520,7 +582,7 @@ export const getUsersLeaves = async (req: Request, res: Response): Promise<void>
         // ✅ Send attendance records with user names
         res.status(200).json({
             message: "Attendance records fetched successfully",
-            attendance: attendance
+            ...attendance[0]
         });
 
     } catch (error) {
@@ -565,11 +627,15 @@ export const authorizeLeaves = async (req: Request, res: Response): Promise<void
         // ✅ Execute the update query
         const [result]: any = await pool.query(query, values);
 
+        const [leaveStatus]: any = await pool.query(
+            "SELECT * FROM attendance WHERE userId = ?",
+            [userId]
+        );
+
         // ✅ Send success response
         res.status(200).json({
             message: `Leave request ${userId} has been updated successfully.`,
-            updatedLeave: { userId, attendanceStatus, date, leaveReason, leaveApprovalStatus },
-            result: result
+            ...leaveStatus[0]
         });
 
     } catch (error) {

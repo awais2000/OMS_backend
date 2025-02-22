@@ -4,6 +4,11 @@ import pool from "../database/db"; // ✅ Import MySQL connection
 // 🛠 Get Attendance Function (Now Properly Checks User Existence)
 export const getAttendance = async (req: Request, res: Response) => {
     try {
+        let page = parseInt(req.query.page as string) || 1;
+        let limit = parseInt(req.query.limit as string) || 10;
+        let offset = (page - 1) * limit; // ✅ Calculate the offset
+
+        console.log(`Fetching page ${page} with limit ${limit}`);
         const userId= req.params.id; // ✅ Get user ID from URL
         console.log(userId);
         // ✅ Check if the user exists in the `login` table
@@ -19,7 +24,7 @@ export const getAttendance = async (req: Request, res: Response) => {
 
         // ✅ Fetch attendance records for the user
         const [attendance]: any = await pool.query(
-            "SELECT date, clockIn, clockOut FROM attendance WHERE userId = ? ORDER BY date DESC",
+            "SELECT * FROM attendance WHERE userId = ? ORDER BY date DESC",
             [userId]
         );
 
@@ -32,12 +37,7 @@ export const getAttendance = async (req: Request, res: Response) => {
         res.status(200).json({
             status: 200,
             message: "Attendance records fetched successfully",
-            user: {
-                id: user[0].id,
-                name: user[0].name,
-                email: user[0].email
-            },
-            attendance
+            ...attendance[0]
         });
 
     } catch (error) {
@@ -52,6 +52,7 @@ export const getAttendance = async (req: Request, res: Response) => {
 // 🛠 Mark Attendance Function (Handles Both Clock In & Clock Out + Auto Absent Marking)
 export const markAttendance = async (req: Request, res: Response): Promise<void> => {
     try {
+        
         const userId = req.params.id;
         console.log("User ID:", userId);
 
@@ -122,8 +123,14 @@ export const markAttendance = async (req: Request, res: Response): Promise<void>
             const values = [userId];
             await pool.query(query, values);
 
+            const [attendance]: any = await pool.query(
+                "SELECT * FROM attendance WHERE userId = ?",
+                [userId]
+            );
+
             res.status(200).json({
-                message: "Clock-out recorded successfully"
+                message: "Clock-out recorded successfully",
+                ...attendance[0]
             });
 
         } else {
@@ -140,6 +147,14 @@ export const markAttendance = async (req: Request, res: Response): Promise<void>
 };
 export const addLeave = async (req: Request, res: Response): Promise<void> => {
     try {
+        const user_id = (req as any).user.id; // ✅ Get user ID from authenticated token
+
+        // ✅ Get `page` and `limit` from query params (Default: page=1, limit=10)
+        let page = parseInt(req.query.page as string) || 1;
+        let limit = parseInt(req.query.limit as string) || 10;
+        let offset = (page - 1) * limit; // ✅ Calculate the offset
+
+        console.log(`Fetching page ${page} with limit ${limit}`);
         // ✅ Get `userId` from authenticated user (via JWT token)
         const userId = req.params.id;
 
@@ -189,7 +204,7 @@ export const addLeave = async (req: Request, res: Response): Promise<void> => {
             status: 201,
             message: "Leave added successfully",
             leaveId: result.insertId,
-            leaves: updatedLeaves // ✅ Send all leave records to frontend
+            ...updatedLeaves[0]
         });
 
     } catch (error) {
