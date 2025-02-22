@@ -643,3 +643,61 @@ export const authorizeLeaves = async (req: Request, res: Response): Promise<void
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
+
+
+export const configHolidays = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { date, holiday } = req.body;
+
+        // ✅ Ensure required fields are present
+        if (!date || !holiday) {
+            res.status(400).json({ msg: "Provide both date and holiday name!" });
+            return;
+        }
+
+        // ✅ SQL Query to Insert Holiday
+        const query = `INSERT INTO holidays (date, holiday) VALUES (?, ?)`;
+        const values = [date, holiday];
+
+        // ✅ Execute the Query
+        const [result]: any = await pool.query(query, values);
+
+        const [holidays]: any = await pool.query("SELECT * FROM holidays");
+
+        // ✅ Send Success Response
+        res.status(201).json({
+            status: 201,
+            msg: "Holiday added successfully",
+           ...holidays[0]
+        });
+        
+
+    } catch (error) {
+        console.error("❌ Error adding holiday:", error);
+        res.status(500).json({ msg: "Internal Server Error" });
+    }
+};
+
+
+
+export const getHolidays = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const [holidays]: any = await pool.query("SELECT * FROM holidays");
+
+        // ✅ Check if customers exist
+        if (holidays.length === 0) {
+            res.status(404).json({ status: 404, message: "No holidays found" });
+            return;
+        }
+
+        // ✅ Send response with customer data
+        res.status(200).json({
+            status: 200,
+            message: "holidays fetched successfully",
+            ...holidays[0] 
+        });
+    } catch (error) {
+        console.error("❌ Error fetching holidays:", error);
+        res.status(500).json({ status: 500, message: "Internal Server Error" });
+    }
+}
