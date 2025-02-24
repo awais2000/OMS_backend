@@ -930,6 +930,22 @@ export const addProject = async (req: Request, res: Response): Promise<void> => 
 
 
 
+// getProjects
+export const getProjects = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const query =   `select * from projects`;
+        
+        const [result]: any = await pool.query(query);
+        res.status(200).send({messsage:"Projects Fetched Successfully!",
+            ...result
+        }
+        )
+    } catch (error) {
+        console.error("❌ Error fetching projects:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+}
+
 
 export const alterProjectInfo = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -1002,3 +1018,47 @@ export const deleteProject = async (req: Request, res: Response): Promise<void> 
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
+
+
+
+
+// assignProject
+export const getAssignProject = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const query = `select * from assignedprojects`;
+        const [result]:any = await pool.query(query);
+
+        res.status(200).send({message: "Assigned Projects Fetched Success!",
+            ...result[0]
+            })
+    } catch (error) {
+        console.error("❌ Error Fetching Assigned Projects:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+}
+
+
+
+
+
+
+export const assignProject = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const {employeeId, projectId}= req.body;
+
+        const query = `insert into assignProjects (employeeId, projectId)
+        value (?, ?)`;
+
+        const values = [employeeId, projectId];
+    
+        const [result]: any = await pool.query(query, values);
+
+        res.status(200).send({message: "Project assigned successfully!",
+            ...result[0]
+        })
+    } catch (error) {
+        console.error("❌ Error Assigning Project:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+
+}

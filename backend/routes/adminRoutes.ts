@@ -1,5 +1,5 @@
 import { Application } from "express";
-import { getAllUsers, login, addUser, updateUser, deleteUser, getAllCustomer, addCustomerInfo, updateCustomer, deleteCustomer, getAttendance, addAttendance, updateAttendance, deleteAttendance, getUsersLeaves, authorizeLeaves, configHolidays, getHolidays, withdrawEmployee, createCatagory, addProject, alterCategory, deleteCategory, alterProjectInfo, deleteProject } from "../controllers/adminController";
+import { getAllUsers, login, addUser, updateUser, deleteUser, getAllCustomer, addCustomerInfo, updateCustomer, deleteCustomer, getAttendance, addAttendance, updateAttendance, deleteAttendance, getUsersLeaves, authorizeLeaves, configHolidays, getHolidays, withdrawEmployee, createCatagory, addProject, alterCategory, deleteCategory, alterProjectInfo, deleteProject,  getProjects, assignProject, getAssignProject } from "../controllers/adminController";
 import { authenticateToken, isAdmin } from "../middleware/middleware";
 import { upload } from "../middleware/uploadMiddleware"; 
 
@@ -70,10 +70,18 @@ export default (app: Application): void => {
 
 
     //======>add project:
+    app.get('/admin/getProjects', getProjects);
+
     app.post('/admin/addProject',authenticateToken, isAdmin, addProject);
 
     app.put('/admin/alterProjectInfo/:id',authenticateToken, isAdmin, alterProjectInfo);
 
     app.patch('/admin/deleteProject/:id',authenticateToken, isAdmin, deleteProject);
+
+    // ======> assign project:
+    app.get('/admin/getAssignProject', getAssignProject);
+
+    app.post('/admin/assignProject', assignProject);
+
 };
 
