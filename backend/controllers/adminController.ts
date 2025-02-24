@@ -40,7 +40,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
             token,
             name: user.name,
             email: user.email,
-            role: user.contact,
+            role: user.role,
             contact: user.contact,
             cnic: user.cnic,
             date: user.date,
@@ -86,6 +86,15 @@ export const addUser = async (req: Request, res: Response): Promise<void> => {
             return;
         }
 
+        const [existingUser]:any  = await pool.query(`select * from login where LOWER(email)= LOWER(?)`,
+            [email]
+         )
+
+         if(existingUser.lenght>0){
+            res.send({message:"User already exists"!})
+            return;
+         }
+
         // ✅ Hash the password before storing it
         const saltRounds = 10;
         const hashedPassword = await bcrypt.hash(password, saltRounds);
@@ -104,12 +113,12 @@ export const addUser = async (req: Request, res: Response): Promise<void> => {
             message: "User added successfully",
             name: name,
             email: email,
-            role: contact,
+            role: role,
             contact: contact,
             address: address,
             cnic: cnic,
             date: date,
-            imagePath: image  // ✅ Return uploaded file path
+            imagePath: image
         });
 
     } catch (error) {
@@ -740,6 +749,256 @@ export const withdrawEmployee = async (req: Request, res: Response): Promise<voi
 
     } catch (error) {
         console.error("❌ Error withdrawing employee:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+
+
+export const createCatagory = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const {categoryName}  = req.body;
+
+        const query  = `insert into categories (categoryName) values (?)`;
+
+        const values  = [categoryName]; 
+
+        const [checkCategory]:any  = await pool.query(`select * from categories where LOWER(categoryName)= LOWER(?)`,
+            [categoryName]
+        );
+
+
+        if(checkCategory.lenght>0){
+            res.status(400).send({message: "Category already exsits!"});
+            return;
+        }
+
+    const [categoryDate]: any = await pool.query(query, values);    
+    
+    const [displayCategory]: any = await pool.query(`select * from categories`);
+
+    res.status(200).send({message: "category saved successfully!",
+        ...displayCategory[0]
+    })
+    } catch (error) {
+        console.error("❌ Error Adding category:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+    
+}
+
+
+
+
+
+export const alterCategory = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const id = req.params.id;
+        const { categoryName } = req.body;
+
+        // ✅ Ensure required fields are provided
+        if (!categoryName) {
+            res.status(400).json({ message: "Please provide the category name!" });
+            return;
+        }
+
+        // ✅ Check if category exists
+        const [existingCategory]: any = await pool.query(
+            "SELECT * FROM categories WHERE id = ?",
+            [id]
+        );
+
+        if (existingCategory.length === 0) {
+            res.status(404).json({ message: "Category not found!" });
+            return;
+        }
+
+        // ✅ Update category in the database
+        const updateQuery = `UPDATE categories SET categoryName = ? WHERE id = ?`;
+        const values = [categoryName, id];
+
+        await pool.query(updateQuery, values);
+
+        // ✅ Fetch updated category data
+        const [updatedCategory]: any = await pool.query(
+            "SELECT * FROM categories WHERE id = ?",
+            [id]
+        );
+
+        // ✅ Send success response
+        res.status(200).json({
+            message: "Category updated successfully!",
+            ...updatedCategory[0]
+        });
+
+    } catch (error) {
+        console.error("❌ Error updating category:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+
+export const deleteCategory = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const id = req.params.id;
+
+        // ✅ Check if category exists and is active
+        const [existingCategory]: any = await pool.query(
+            "SELECT * FROM categories WHERE id = ? AND categoryStatus = 'Y'",
+            [id]
+        );
+
+        if (existingCategory.length === 0) {
+            res.status(404).json({ message: "Category not found or already disabled!" });
+            return;
+        }
+
+
+        // ✅ Update `categoryStatus` from 'Y' to 'N' (Soft Delete)
+        const updateQuery = `UPDATE categories SET categoryStatus = 'N' WHERE id = ?`;
+        await pool.query(updateQuery, [id]);
+
+        // ✅ Send success response
+        res.status(200).json({
+            message: "Category successfully disabled (soft deleted)!"
+        });
+
+    } catch (error) {
+        console.error("❌ Error disabling category:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+
+
+
+// ADD PROJECT:
+export const addProject = async (req: Request, res: Response): Promise<void> => {
+    try {
+        // ✅ Fetch all available categories before project creation
+        const [categories]: any = await pool.query(`SELECT categoryName FROM categories where categoryStatus = ?`, 'Y');
+
+        // ✅ Extract project details from request body
+        const { projectName, projectCategory, startDate, endDate } = req.body;
+
+        // ✅ Ensure required fields are present
+        if (!projectName || !projectCategory || !startDate || !endDate) {
+            res.status(400).json({ message: "Please fill all the fields!", categories });
+            return;
+        }
+
+        // ✅ Extract category names from DB for comparison
+        const categoryList = categories.map((cat: any) => cat.categoryName.toLowerCase());
+
+        // ✅ Check if the selected category exists in the database
+        if (!categoryList.includes(projectCategory.toLowerCase())) {
+            res.status(400).json({ message: "Invalid category selected!", categories });
+            return;
+        }
+
+        // ✅ Check if project already exists (Case-insensitive check)
+        const [existingProject]: any = await pool.query(
+            "SELECT * FROM projects WHERE LOWER(projectName) = LOWER(?)",
+            [projectName]
+        );
+
+        if (existingProject.length > 0) {
+            res.status(400).json({ message: "Project already exists!", categories });
+            return;
+        }
+
+        // ✅ Insert new project
+        const query = `INSERT INTO projects (projectName, projectCategory, startDate, endDate) VALUES (?, ?, ?, ?)`;
+        const values = [projectName, projectCategory, startDate, endDate];
+
+        const [result]: any = await pool.query(query, values);
+
+        // ✅ Fetch all projects after insertion
+        const [getProjects]: any = await pool.query("SELECT * FROM projects ORDER BY id DESC");
+
+        // ✅ Send success response with available categories and projects
+        res.status(200).json({
+            message: "Project added successfully!",
+            ...getProjects[0]
+        });
+
+    } catch (error) {
+        console.error("❌ Error Adding Project:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+
+
+
+export const alterProjectInfo = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const id = req.params.id;
+        const { projectName, projectCategory, startDate, endDate } = req.body;
+
+        // ✅ Ensure required fields are provided
+        if (!projectName || !projectCategory || !startDate || !endDate) {
+            res.status(400).json({ message: "Please provide all required fields!" });
+            return;
+        }
+
+        // ✅ Check if the project exists
+        const [existingProject]: any = await pool.query(
+            "SELECT * FROM projects WHERE id = ?",
+            [id]
+        );
+
+        if (existingProject.length === 0) {
+            res.status(404).json({ message: "Project not found!" });
+            return;
+        }
+
+        // ✅ Update project details
+        const updateQuery = `
+            UPDATE projects 
+            SET projectName = ?, projectCategory = ?, startDate = ?, endDate = ?
+            WHERE id = ?
+        `;
+        const values = [projectName, projectCategory, startDate, endDate, id];
+
+        await pool.query(updateQuery, values);
+
+        // ✅ Fetch updated project data
+        const [updatedProject]: any = await pool.query(
+            "SELECT * FROM projects WHERE id = ?",
+            [id]
+        );
+
+        // ✅ Send success response
+        res.status(200).json({
+            message: "Project updated successfully!",
+            ...updatedProject[0]
+        });
+
+    } catch (error) {
+        console.error("❌ Error updating project:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+
+
+
+export const deleteProject = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const id = req.params.id;
+
+        // ✅ Update `categoryStatus` from 'Y' to 'N' (Soft Delete)
+        const updateQuery = `UPDATE projects SET projectStatus = 'N' WHERE id = ?`;
+        await pool.query(updateQuery, [id]);
+
+        // ✅ Send success response
+        res.status(200).json({
+            message: "Project successfully disabled Project!"
+        });
+
+    } catch (error) {
+        console.error("❌ Error disabling Project:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };

@@ -1,5 +1,5 @@
 import { Application } from "express";
-import { getAllUsers, login, addUser, updateUser, deleteUser, getAllCustomer, addCustomerInfo, updateCustomer, deleteCustomer, getAttendance, addAttendance, updateAttendance, deleteAttendance, getUsersLeaves, authorizeLeaves, configHolidays, getHolidays, withdrawEmployee } from "../controllers/adminController";
+import { getAllUsers, login, addUser, updateUser, deleteUser, getAllCustomer, addCustomerInfo, updateCustomer, deleteCustomer, getAttendance, addAttendance, updateAttendance, deleteAttendance, getUsersLeaves, authorizeLeaves, configHolidays, getHolidays, withdrawEmployee, createCatagory, addProject, alterCategory, deleteCategory, alterProjectInfo, deleteProject } from "../controllers/adminController";
 import { authenticateToken, isAdmin } from "../middleware/middleware";
 import { upload } from "../middleware/uploadMiddleware"; 
 
@@ -57,7 +57,23 @@ export default (app: Application): void => {
     app.post('/admin/configHolidays', authenticateToken, isAdmin, configHolidays);
     // app.post('/admin/configHolidays', configHolidays);
 
-    app.post('/admin/withdrawEmployee', withdrawEmployee);
+    app.post('/admin/withdrawEmployee', authenticateToken, isAdmin, withdrawEmployee);
+    // app.post('/admin/withdrawEmployee', withdrawEmployee);
 
+
+    //--------> add Catagory:
+    app.post('/admin/createCatagory',authenticateToken, isAdmin, createCatagory);
+
+    app.put('/admin/alterCategory/:id',authenticateToken, isAdmin, alterCategory);
+
+    app.patch('/admin/deleteCategory/:id',authenticateToken, isAdmin, deleteCategory);
+
+
+    //======>add project:
+    app.post('/admin/addProject',authenticateToken, isAdmin, addProject);
+
+    app.put('/admin/alterProjectInfo/:id',authenticateToken, isAdmin, alterProjectInfo);
+
+    app.patch('/admin/deleteProject/:id',authenticateToken, isAdmin, deleteProject);
 };
 
