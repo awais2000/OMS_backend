@@ -1211,6 +1211,24 @@ export const deleteAssignment = async (req: Request, res: Response): Promise<voi
 };
 
 
+
+
+// getTodo
+export const getTodo = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const [result]: any = await pool.query(`select * from todo`);
+        res.status(200).send({message:"todo fetched successfully!",
+            ...result[0]
+        })
+    } catch (error) {
+        console.error("❌ Error fetching todo!:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }    
+}
+
+
+
+
 // createTodo
 
 export const createTodo = async (req: Request, res: Response): Promise<void> => {
@@ -1304,6 +1322,35 @@ export const alterTodo = async (req: Request, res: Response): Promise<void> => {
 
     } catch (error) {
         console.error("❌ Error Updating Todo:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+
+
+export const deleteTodo = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { id } = req.params;
+
+        // ✅ Check if the todo exists
+        const [todo]: any = await pool.query(
+            "SELECT * FROM todo WHERE id = ?",
+            [id]
+        );
+
+        if (todo.length === 0) {
+            res.status(404).json({ message: "Todo not found!" });
+            return;
+        }
+
+        // ✅ Soft delete: Update `todoStatus` to 'N'
+        const query = `UPDATE todo SET todoStatus = 'N' WHERE id = ?`;
+        await pool.query(query, [id]);
+
+        res.status(200).json({ message: "Todo deleted successfully!" });
+
+    } catch (error) {
+        console.error("❌ Error deleting todo:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };

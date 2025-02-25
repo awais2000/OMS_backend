@@ -1,5 +1,5 @@
 import { Application } from "express";
-import { getAllUsers, login, addUser, updateUser, deleteUser, getAllCustomer, addCustomerInfo, updateCustomer, deleteCustomer, getAttendance, addAttendance, updateAttendance, deleteAttendance, getUsersLeaves, authorizeLeaves, configHolidays, getHolidays, withdrawEmployee, createCatagory, addProject, alterCategory, deleteCategory, alterProjectInfo, deleteProject,  getProjects, assignProject, getAssignProject, alterAssignProject, deleteAssignment, createTodo, alterTodo} from "../controllers/adminController";
+import { getAllUsers, login, addUser, updateUser, deleteUser, getAllCustomer, addCustomerInfo, updateCustomer, deleteCustomer, getAttendance, addAttendance, updateAttendance, deleteAttendance, getUsersLeaves, authorizeLeaves, configHolidays, getHolidays, withdrawEmployee, createCatagory, addProject, alterCategory, deleteCategory, alterProjectInfo, deleteProject,  getProjects, assignProject, getAssignProject, alterAssignProject, deleteAssignment, createTodo, alterTodo, deleteTodo, getTodo} from "../controllers/adminController";
 import { authenticateToken, isAdmin } from "../middleware/middleware";
 import { upload } from "../middleware/uploadMiddleware"; 
 
@@ -10,10 +10,10 @@ export default (app: Application): void => {
     app.get("/admin/getUser", authenticateToken, isAdmin, getAllUsers);
     
 
-    // app.post('/admin/addUser',upload.single("document"), authenticateToken, isAdmin, addUser);
-    app.post('/admin/addUser',upload.single("image"),  addUser);
+    app.post('/admin/addUser',upload.single("image"), authenticateToken, isAdmin, addUser);
+    // app.post('/admin/addUser',upload.single("image"),  addUser);
 
-    app.put('/admin/updateUser/:id', authenticateToken, isAdmin, upload.single("document"), updateUser);
+    app.put('/admin/updateUser/:id', authenticateToken, isAdmin, upload.single("image"), updateUser);
     // app.put('/admin/updateUser/:id',   upload.single("document"), updateUser);
 
     app.delete("/admin/deleteUser/:id", authenticateToken, isAdmin, deleteUser);
@@ -90,8 +90,12 @@ export default (app: Application): void => {
 
 
     //todo and progress:
+    app.get('/admin/getTodo', getTodo);
+
     app.post('/admin/createTodo', createTodo);
 
     app.post('/admin/alterTodo/:id', alterTodo); 
+
+    app.patch('/admin/deleteTodo/:id', deleteTodo); 
 };
 
