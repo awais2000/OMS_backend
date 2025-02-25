@@ -6,13 +6,12 @@ import fs from "fs";
 import path from "path";
 
 
-// 🛠 Login Function with JWT Token for Role-Based Access
 export const login = async (req: Request, res: Response): Promise<void> => {
     try {
-
         const { email, password } = req.body;
         console.log("Email:", email, "Password:", password);
 
+        // ✅ Fetch user by email
         const [users]: any = await pool.query("SELECT * FROM login WHERE email = ?", [email]);
 
         if (users.length === 0) {
@@ -22,7 +21,9 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
         const user = users[0];
 
-        if (password !== user.password) {
+        // ✅ Compare hashed password using bcrypt
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
             res.status(400).json({ status: 400, message: "Invalid Username or Password" });
             return;
         }
@@ -34,6 +35,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
             { expiresIn: "1h" }
         );
 
+        // ✅ Send success response (excluding password)
         res.json({
             status: 200,
             message: "Login Successful",
@@ -47,13 +49,11 @@ export const login = async (req: Request, res: Response): Promise<void> => {
             image: user.image
         });
 
-
     } catch (error) {
         console.error("❌ Login Error:", error);
         res.status(500).json({ status: 500, message: "Internal Server Error" });
     }
 };
-
 
 
 // 🛠 Get All Users Function
@@ -74,11 +74,16 @@ export const getAllUsers = async (req: Request, res: Response): Promise<void> =>
 
 
 
-// 🛠 Add User Function with File Upload & Password Hashing
+
+
+
+// 🛠 **Add User Function**
 export const addUser = async (req: Request, res: Response): Promise<void> => {
     try {
         const { name, email, password, contact, cnic, address, date, role } = req.body;
-        const image = req.file ? req.file.path : null; // ✅ Store uploaded file path or NULL
+        const imagePath = req.file ? req.file.path.replace(/\\/g, "/") : null; // ✅ Store uploaded file path
+
+        console.log("Image Path:", imagePath); // ✅ Debugging Image Path
 
         // ✅ Ensure required fields are present
         if (!name || !email || !password || !cnic || !role) {
@@ -86,14 +91,12 @@ export const addUser = async (req: Request, res: Response): Promise<void> => {
             return;
         }
 
-        const [existingUser]:any  = await pool.query(`select * from login where LOWER(email)= LOWER(?)`,
-            [email]
-         )
-
-         if(existingUser.lenght>0){
-            res.send({message:"User already exists"!})
+        // ✅ Check if user already exists
+        const [existingUser]: any = await pool.query("SELECT * FROM login WHERE LOWER(email) = LOWER(?)", [email]);
+        if (existingUser.length > 0) {
+            res.status(400).json({ message: "User already exists!" });
             return;
-         }
+        }
 
         // ✅ Hash the password before storing it
         const saltRounds = 10;
@@ -104,21 +107,23 @@ export const addUser = async (req: Request, res: Response): Promise<void> => {
             INSERT INTO login (name, email, password, contact, cnic, address, date, role, image)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
-        const values = [name, email, hashedPassword, contact, cnic, address, date, role, image];
+        const values = [name, email, hashedPassword, contact, cnic, address, date, role, imagePath];
 
         const [result]: any = await pool.query(query, values);
 
+        // ✅ Send success response
         res.status(201).json({
             status: 201,
             message: "User added successfully",
-            name: name,
-            email: email,
-            role: role,
-            contact: contact,
-            address: address,
-            cnic: cnic,
-            date: date,
-            imagePath: image
+            userId: result.insertId,
+            name,
+            email,
+            role,
+            contact,
+            address,
+            cnic,
+            date,
+            imagePath
         });
 
     } catch (error) {
@@ -126,6 +131,7 @@ export const addUser = async (req: Request, res: Response): Promise<void> => {
         res.status(500).json({ status: 500, message: "Internal Server Error" });
     }
 };
+
 
 
 
@@ -1040,25 +1046,264 @@ export const getAssignProject = async (req: Request, res: Response): Promise<voi
 
 
 
-
-
 export const assignProject = async (req: Request, res: Response): Promise<void> => {
     try {
-        const {employeeId, projectId}= req.body;
+        const { name, projectName } = req.body;
+        console.log(name, projectName);
 
-        const query = `insert into assignProjects (employeeId, projectId)
-        value (?, ?)`;
+        // ✅ Fetch User ID from login table
+        const [user]: any = await pool.query(
+            "SELECT id FROM login WHERE name = ?",
+            [name]
+        );
 
-        const values = [employeeId, projectId];
-    
-        const [result]: any = await pool.query(query, values);
+        if (user.length === 0) {
+            res.status(404).json({ message: "User not found!" });
+            return;
+        }
+        const userID = user[0].id;
 
-        res.status(200).send({message: "Project assigned successfully!",
-            ...result[0]
-        })
+        // ✅ Fetch Project ID from projects table
+        const [project]: any = await pool.query(
+            "SELECT id FROM projects WHERE projectName = ?",
+            [projectName]
+        );
+
+        if (project.length === 0) {
+            res.status(404).json({ message: "Project not found!" });
+            return;
+        }
+        const projectID = project[0].id;
+
+        console.log("User ID:", userID, "Project ID:", projectID);
+
+        // ✅ Insert into assignedprojects (Fix: Removed extra columns)
+        const query = `
+            INSERT INTO assignedprojects (employeeId, projectId, date, assignStatus)
+            VALUES (?, ?, CURDATE(), 'Y');
+        `;
+        const values = [userID, projectID];
+
+        await pool.query(query, values);
+
+        // ✅ Fetch assigned project details (Now fetching names properly)
+        const [assignedProject]: any = await pool.query(`
+            SELECT ap.id, l.name AS employeeName, p.projectName, ap.date, ap.assignStatus
+            FROM assignedprojects ap
+            JOIN login l ON ap.employeeId = l.id
+            JOIN projects p ON ap.projectId = p.id
+            WHERE ap.employeeId = ? AND ap.projectId = ?;
+        `, [userID, projectID]);
+
+        // ✅ Send success response
+        res.status(201).json({
+            message: "Project assigned successfully!",
+            ...assignedProject[0]
+        });
+
     } catch (error) {
         console.error("❌ Error Assigning Project:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
+};
 
+
+
+
+export const alterAssignProject = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { id } = req.params;  // ✅ Assignment ID from URL
+        const { name, projectName } = req.body; // ✅ New employee & project names
+
+        // ✅ Get Employee ID from login table
+        const [user]: any = await pool.query("SELECT id FROM login WHERE name = ?", [name]);
+        if (user.length === 0) {
+            res.status(404).json({ message: "User not found!" });
+            return;
+        }
+        const newEmployeeId = user[0].id;
+
+        // ✅ Get Project ID from projects table
+        const [project]: any = await pool.query("SELECT id FROM projects WHERE projectName = ?", [projectName]);
+        if (project.length === 0) {
+            res.status(404).json({ message: "Project not found!" });
+            return;
+        }
+        const newProjectId = project[0].id;
+
+        console.log("Updating Assigned Project ID:", id, "New Employee ID:", newEmployeeId, "New Project ID:", newProjectId);
+
+        // ✅ Update the assigned project
+        const query = `
+            UPDATE assignedprojects 
+            SET employeeId = ?, projectId = ?, date = CURDATE()
+            WHERE id = ?;
+        `;
+        const values = [newEmployeeId, newProjectId, id];
+
+        const [result]: any = await pool.query(query, values);
+
+        if (result.affectedRows === 0) {
+            res.status(404).json({ message: "Assignment not found or no changes made!" });
+            return;
+        }
+
+        // ✅ Fetch updated assignment details
+        const [updatedAssignment]: any = await pool.query(`
+            SELECT ap.id, l.name AS employeeName, p.projectName, ap.date, ap.assignStatus
+            FROM assignedprojects ap
+            JOIN login l ON ap.employeeId = l.id
+            JOIN projects p ON ap.projectId = p.id
+            WHERE ap.id = ?;
+        `, [id]);
+
+        // ✅ Send success response
+        res.status(200).json({
+            message: "Project assignment updated successfully!",
+            ...updatedAssignment[0]
+        });
+
+    } catch (error) {
+        console.error("❌ Error Updating Assigned Project:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+
+
+
+export const deleteAssignment = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { id } = req.params; // ✅ Get assignment ID from URL
+
+        // ✅ Update assignStatus to 'N' (Soft Delete)
+        const query = `
+            UPDATE assignedprojects 
+            SET assignStatus = 'N' 
+            WHERE id = ?;
+        `;
+        const [result]: any = await pool.query(query, [id]);
+
+        if (result.affectedRows === 0) {
+            res.status(404).json({ message: "Assignment not found or already deleted!" });
+            return;
+        }
+
+        // ✅ Fetch updated project list (Only active assignments)
+        const [activeAssignments]: any = await pool.query(`
+            SELECT ap.id, l.name AS employeeName, p.projectName, ap.date, ap.assignStatus
+            FROM assignedprojects ap
+            JOIN login l ON ap.employeeId = l.id
+            JOIN projects p ON ap.projectId = p.id
+            WHERE ap.assignStatus = 'Y';
+        `);
+
+        // ✅ Send success response with remaining active projects
+        res.status(200).json({
+            message: "Project assignment deleted successfully!",
+            ...activeAssignments
+        });
+
+    } catch (error) {
+        console.error("❌ Error Deleting Assignment:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+
+// createTodo
+
+export const createTodo = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const {name, task, note, startDate, endDate, deadline} = req.body;
+        const [user]: any = await pool.query(
+            "SELECT id FROM login WHERE name = ?",
+            [name]
+        );
+
+        if (user.length === 0) {
+            res.status(404).json({ message: "User not found!" });
+            return;
+        }
+        const userID = user[0].id;
+
+        const query  = `insert into todo (employeeId, task, note, startDate, endDate, deadline) 
+        values (?, ?, ?, ?, ?, ?)`;
+
+        const values = [userID, task, note, startDate, endDate, deadline];
+
+        const [result]:any = await pool.query(query, values);
+
+        const [createdTodo]:any = await pool.query(`select t.id, l.name, t.task, t.note, t.startDate, t.endDate, t.endDate, t.deadline
+        from todo t 
+        join login l on 
+        l.id = t.employeeId;`);
+        res.status(200).send({message:"todo added successfully!",
+            ...createdTodo[0]
+        })
+    } catch (error) {
+        console.error("❌ Error creating todo!:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
 }
+
+
+
+
+
+export const alterTodo = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { id } = req.params;  // ✅ Get Todo ID from URL
+        const { name, task, note, startDate, endDate, deadline } = req.body;
+
+        // ✅ Get Employee ID from login table
+        const [user]: any = await pool.query("SELECT id FROM login WHERE name = ?", [name]);
+        if (user.length === 0) {
+            res.status(404).json({ message: "User not found!" });
+            return;
+        }
+        const employeeId = user[0].id;
+
+        console.log("Updating Todo ID:", id, "Employee ID:", employeeId);
+
+        // ✅ Check if Todo exists
+        const [existingTodo]: any = await pool.query("SELECT * FROM todo WHERE id = ? AND employeeId = ?", [id, employeeId]);
+        if (existingTodo.length === 0) {
+            res.status(404).json({ message: "Todo not found or unauthorized access!" });
+            return;
+        }
+
+        // ✅ Update the Todo
+        const query = `
+            UPDATE todo 
+            SET task = ?, note = ?, startDate = ?, endDate = ?, deadline = ?
+            WHERE id = ? AND employeeId = ?;
+        `;
+        const values = [task, note, startDate, endDate, deadline, id, employeeId];
+
+        const [result]: any = await pool.query(query, values);
+
+        if (result.affectedRows === 0) {
+            res.status(404).json({ message: "No changes made!" });
+            return;
+        }
+
+        // ✅ Fetch updated todo details
+        const [updatedTodo]: any = await pool.query(`
+            SELECT t.id, l.name AS employeeName, t.task, t.note, t.startDate, t.endDate, t.deadline
+            FROM todo t 
+            JOIN login l ON l.id = t.employeeId
+            WHERE t.id = ?;
+        `, [id]);
+
+        // ✅ Send success response
+        res.status(200).json({
+            message: "Todo updated successfully!",
+            updatedTodo: updatedTodo[0]
+        });
+
+    } catch (error) {
+        console.error("❌ Error Updating Todo:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};

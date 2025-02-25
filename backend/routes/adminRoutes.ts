@@ -1,5 +1,5 @@
 import { Application } from "express";
-import { getAllUsers, login, addUser, updateUser, deleteUser, getAllCustomer, addCustomerInfo, updateCustomer, deleteCustomer, getAttendance, addAttendance, updateAttendance, deleteAttendance, getUsersLeaves, authorizeLeaves, configHolidays, getHolidays, withdrawEmployee, createCatagory, addProject, alterCategory, deleteCategory, alterProjectInfo, deleteProject,  getProjects, assignProject, getAssignProject } from "../controllers/adminController";
+import { getAllUsers, login, addUser, updateUser, deleteUser, getAllCustomer, addCustomerInfo, updateCustomer, deleteCustomer, getAttendance, addAttendance, updateAttendance, deleteAttendance, getUsersLeaves, authorizeLeaves, configHolidays, getHolidays, withdrawEmployee, createCatagory, addProject, alterCategory, deleteCategory, alterProjectInfo, deleteProject,  getProjects, assignProject, getAssignProject, alterAssignProject, deleteAssignment, createTodo, alterTodo} from "../controllers/adminController";
 import { authenticateToken, isAdmin } from "../middleware/middleware";
 import { upload } from "../middleware/uploadMiddleware"; 
 
@@ -7,11 +7,11 @@ import { upload } from "../middleware/uploadMiddleware";
 export default (app: Application): void => {
     app.post("/login", login);
 
-    app.get("/admin/home", authenticateToken, isAdmin, getAllUsers);
+    app.get("/admin/getUser", authenticateToken, isAdmin, getAllUsers);
     
 
-    app.post('/admin/addUser',upload.single("document"), authenticateToken, isAdmin, addUser);
-    // app.post('/admin/addUser',upload.single("document"),  addUser);
+    // app.post('/admin/addUser',upload.single("document"), authenticateToken, isAdmin, addUser);
+    app.post('/admin/addUser',upload.single("image"),  addUser);
 
     app.put('/admin/updateUser/:id', authenticateToken, isAdmin, upload.single("document"), updateUser);
     // app.put('/admin/updateUser/:id',   upload.single("document"), updateUser);
@@ -79,9 +79,19 @@ export default (app: Application): void => {
     app.patch('/admin/deleteProject/:id',authenticateToken, isAdmin, deleteProject);
 
     // ======> assign project:
-    app.get('/admin/getAssignProject', getAssignProject);
+    app.get('/admin/getAssignProject',authenticateToken, isAdmin, getAssignProject);
 
-    app.post('/admin/assignProject', assignProject);
+    app.post('/admin/assignProject', authenticateToken, isAdmin, assignProject);
 
+    app.put('/admin/alterAssignProject/:id',authenticateToken, isAdmin, alterAssignProject);
+
+    app.patch('/admin/deleteAssignment/:id',authenticateToken, isAdmin, deleteAssignment);
+
+
+
+    //todo and progress:
+    app.post('/admin/createTodo', createTodo);
+
+    app.post('/admin/alterTodo/:id', alterTodo); 
 };
 

@@ -11,7 +11,7 @@ export const authenticateToken = (req: AuthenticatedRequest, res: Response, next
     const token = req.header("Authorization");
 
     if (!token) {
-        res.status(401).json({ status: 401, msg: "Access Denied. No Token Provided." });
+        res.status(401).json({ status: 401, message: "Access Denied. No Token Provided." });
         return;
     }
 
@@ -20,14 +20,14 @@ export const authenticateToken = (req: AuthenticatedRequest, res: Response, next
         req.user = decoded; // ✅ Attach user data to request
         next(); // ✅ Ensure `next()` is called
     } catch (error) {
-        res.status(403).json({ status: 403, msg: "Invalid Token" });
+        res.status(403).json({ status: 403, message: "Invalid Token" });
     }
 };
 
 // ✅ Fix: Ensure `next()` is called properly
 export const isAdmin = (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
     if (!req.user || req.user.role !== "admin") {
-        res.status(403).json({ status: 403, msg: "Access Denied. Admins Only." });
+        res.status(403).json({ status: 403, message: "Access Denied. Admins Only." });
         return;
     }
     next(); // ✅ Ensure `next()` is called
