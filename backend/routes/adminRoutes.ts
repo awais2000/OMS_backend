@@ -1,5 +1,5 @@
 import { Application } from "express";
-import { getAllUsers, login, addUser, updateUser, deleteUser, getAllCustomer, addCustomerInfo, updateCustomer, deleteCustomer, getAttendance, addAttendance, updateAttendance, deleteAttendance, getUsersLeaves, authorizeLeaves, configHolidays, getHolidays, withdrawEmployee, createCatagory, addProject, alterCategory, deleteCategory, alterProjectInfo, deleteProject,  getProjects, assignProject, getAssignProject, alterAssignProject, deleteAssignment, createTodo, alterTodo, deleteTodo, getTodo} from "../controllers/adminController";
+import { getAllUsers, login, addUser, updateUser, deleteUser, getAllCustomer, addCustomerInfo, updateCustomer, deleteCustomer, getAttendance, addAttendance, updateAttendance, deleteAttendance, getUsersLeaves, authorizeLeaves, configHolidays, getHolidays, withdrawEmployee, createCatagory, addProject, alterCategory, deleteCategory, alterProjectInfo, deleteProject,  getProjects, assignProject, getAssignProject, alterAssignProject, deleteAssignment, createTodo, alterTodo, deleteTodo, getTodo, addProgress, alterProgress, deleteProgress} from "../controllers/adminController";
 import { authenticateToken, isAdmin } from "../middleware/middleware";
 import { upload } from "../middleware/uploadMiddleware"; 
 
@@ -90,12 +90,20 @@ export default (app: Application): void => {
 
 
     //todo and progress:
-    app.get('/admin/getTodo', getTodo);
+    app.get('/admin/getTodo',authenticateToken, isAdmin, getTodo);
 
-    app.post('/admin/createTodo', createTodo);
+    app.post('/admin/createTodo',authenticateToken, isAdmin, createTodo);
 
-    app.post('/admin/alterTodo/:id', alterTodo); 
+    app.post('/admin/alterTodo/:id',authenticateToken, isAdmin, alterTodo); 
 
-    app.patch('/admin/deleteTodo/:id', deleteTodo); 
+    app.patch('/admin/deleteTodo/:id',authenticateToken, isAdmin, deleteTodo); 
+
+
+    app.post('/admin/addProgress',authenticateToken, isAdmin, addProgress);
+
+    app.post ('/admin/alterProgress/:id',authenticateToken, isAdmin, alterProgress);
+
+    app.patch('/admin/deleteProgress/:id',authenticateToken, isAdmin, deleteProgress); 
+    
 };
 

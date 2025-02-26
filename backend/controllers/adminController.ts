@@ -1354,3 +1354,136 @@ export const deleteTodo = async (req: Request, res: Response): Promise<void> => 
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
+
+
+
+// addProgress
+export const addProgress = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const {name, projectName, date, note} = req.body;
+
+    const [user]:any = await pool.query(`select id from login where name = ?`, [name]);
+    if (user.length === 0) {
+        res.status(404).json({ message: "User not found!" });
+        return;
+    }
+    const userID = user[0].id;
+
+    const [project]:any = await pool.query(`select id from projects where projectName = ?`, projectName);
+    if (project.length === 0) {
+        res.status(404).json({ message: "User not found!" });
+        return;
+    }
+    const projectID = project[0].id;
+
+    const query = `insert into progress (employeeId, projectId, date, note) values (?, ?, ?, ?)`
+    const values = [userID, projectID, date, note];
+    const [result]:any = await pool.query(query, values);
+
+    const [seeProgress]:any = await pool.query(`select prg.employeeId, prg.projectId, l.name, pro.projectName, prg.note, prg.date
+    from progress prg
+    join login l on 
+    l.id = prg.employeeId
+    join projects pro on
+    prg.projectId = pro.id;`);
+
+    res.status(200).send({message:"Progress added successfully!",
+        ...seeProgress[0]
+    })
+
+    } catch (error) {
+        console.error("❌ Error deleting todo:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+}
+
+
+
+// alterProgress (Update Progress by ID)
+export const alterProgress = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const id = req.params.id;
+        const { name, projectName, date, note } = req.body;
+
+        const [user]:any = await pool.query(`select id from login where name = ?`, [name]);
+        if (user.length === 0) {
+        res.status(404).json({ message: "User not found!" });
+        return;
+        }
+        const userID = user[0].id;
+
+        const [project]:any = await pool.query(`select id from projects where projectName = ?`, projectName);
+        if (project.length === 0) {
+        res.status(404).json({ message: "User not found!" });
+        return;
+        }
+        const projectID = project[0].id;
+
+        // Check if progress entry exists
+        const [progress]: any = await pool.query(`SELECT * FROM progress WHERE id = ?`, [id]);
+        if (progress.length === 0) {
+            res.status(404).json({ message: "Progress entry not found!" });
+            return;
+        }
+
+        // Update the progress entry
+        const query = `UPDATE progress SET employeeId = ?, projectId = ?, date = ?, note = ? WHERE id = ?`;
+        const values = [userID, projectID, date, note, id];
+        await pool.query(query, values);
+
+        // Fetch updated progress
+        const [updatedProgress]: any = await pool.query(
+            `SELECT prg.id, prg.employeeId, prg.projectId, l.name, pro.projectName, prg.note, prg.date
+             FROM progress prg
+             JOIN login l ON l.id = prg.employeeId
+             JOIN projects pro ON prg.projectId = pro.id
+             WHERE prg.id = ?`,
+            [id]
+        );
+
+        res.status(200).json({
+            message: "Progress updated successfully!",
+            ...updatedProgress[0]
+        });
+
+    } catch (error) {
+        console.error("❌ Error updating progress:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+
+//deleteProgress
+export const deleteProgress = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { id } = req.params;
+
+        // ✅ Check if the todo exists
+        const [progress]: any = await pool.query(
+            "SELECT * FROM progress WHERE id = ?",
+            [id]
+        );
+
+        if (progress.length === 0) {
+            res.status(404).json({ message: "progress not found!" });
+            return;
+        }
+
+        const query = `UPDATE progress SET progressStatus = 'N' WHERE id = ?`;
+        await pool.query(query, [id]);
+
+        const [getProgress]:any = `select prg.employeeId, prg.projectId, l.name, pro.projectName, prg.note, prg.date
+        from progress prg
+        join login l on 
+        l.id = prg.employeeId
+        join projects pro on
+        prg.projectId = pro.id`;
+        res.status(200).json({ message: "progress deleted successfully!",
+            ...getProgress[0]
+         });
+
+    } catch (error) {
+        console.error("❌ Error deleting progress:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }  
+}
