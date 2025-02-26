@@ -1,5 +1,5 @@
 import { Application } from "express";
-import { getAllUsers, login, addUser, updateUser, deleteUser, getAllCustomer, addCustomerInfo, updateCustomer, deleteCustomer, getAttendance, addAttendance, updateAttendance, deleteAttendance, getUsersLeaves, authorizeLeaves, configHolidays, getHolidays, withdrawEmployee, createCatagory, addProject, alterCategory, deleteCategory, alterProjectInfo, deleteProject,  getProjects, assignProject, getAssignProject, alterAssignProject, deleteAssignment, createTodo, alterTodo, deleteTodo, getTodo, addProgress, alterProgress, deleteProgress, getProgress, addSales} from "../controllers/adminController";
+import { getAllUsers, login, addUser, changePassword, updateUser, deleteUser, getAllCustomer, addCustomerInfo, updateCustomer, deleteCustomer, getAttendance, addAttendance, updateAttendance, deleteAttendance, getUsersLeaves, authorizeLeaves, configHolidays, getHolidays, withdrawEmployee, createCatagory, addProject, alterCategory, deleteCategory, alterProjectInfo, deleteProject,  getProjects, assignProject, getAssignProject, alterAssignProject, deleteAssignment, createTodo, alterTodo, deleteTodo, getTodo, addProgress, alterProgress, deleteProgress, getProgress, addSales, alterSalesData, deleteSale, addPayment} from "../controllers/adminController";
 import { authenticateToken, isAdmin } from "../middleware/middleware";
 import { upload } from "../middleware/uploadMiddleware"; 
 
@@ -11,6 +11,8 @@ export default (app: Application): void => {
     
     app.post('/admin/addUsers',upload.single("image"), authenticateToken, isAdmin, addUser);
     // app.post('/admin/addUser',upload.single("image"),  addUser);
+
+    app.put('/admin/changePassword/:id',authenticateToken, isAdmin, changePassword);
 
     app.put('/admin/updateUsers/:id', authenticateToken, isAdmin, upload.single("image"), updateUser);
     // app.put('/admin/updateUser/:id',   upload.single("document"), updateUser);
@@ -111,5 +113,12 @@ export default (app: Application): void => {
 
     //add sales and payments:
     app.post('/admin/addSales', addSales);
+
+    app.post('/admin/alterSalesData/:id', alterSalesData);
+
+    app.patch('/admin/deleteSale/:id', deleteSale);
+
+
+    app.post('/admin/addPayment', addPayment);
 };
 

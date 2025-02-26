@@ -91,6 +91,26 @@ export const getAllUsers = async (req: Request, res: Response): Promise<void> =>
 
 
 
+export const changePassword = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { id } = req.params; // Get user ID from URL params
+        const { password } = req.body; // Get new password from request body
+
+        // ✅ Hash the new password
+        const newHashedPassword = await bcrypt.hash(password, 10);
+
+        // ✅ Update the password in the database
+        const updateQuery = `UPDATE login SET password = ? WHERE id = ?`;
+        await pool.query(updateQuery, [newHashedPassword, id]);
+
+        res.status(200).json({ message: "Password updated successfully!" });
+
+    } catch (error) {
+        console.error("❌ Error changing password:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
 
 
 
@@ -1587,4 +1607,116 @@ export const addSales = async (req: Request, res: Response): Promise<void> => {
         console.error("❌ Error adding sales:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
+}
+
+
+
+
+export const alterSalesData = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { id } = req.params; // Sales ID from URL parameter
+        const { customerName, projectName } = req.body;
+
+        // ✅ Fetch customer ID
+        const [customer]: any = await pool.query(`SELECT id FROM customers WHERE customerName = ?`, [customerName]);
+        if (customer.length === 0) {
+            res.status(404).json({ message: "Customer not found!" });
+            return;
+        }
+        const customerId = customer[0].id;
+
+        // ✅ Fetch project ID
+        const [project]: any = await pool.query(`SELECT id FROM projects WHERE projectName = ?`, [projectName]);
+        if (project.length === 0) {
+            res.status(404).json({ message: "Project not found!" });
+            return;
+        }
+        const projectId = project[0].id;
+
+        // ✅ Check if sales record exists
+        const [existingSale]: any = await pool.query(`SELECT * FROM sales WHERE id = ?`, [id]);
+
+        let result;
+        if (existingSale.length > 0) {
+            // ✅ If sale exists, update it
+            const updateQuery = `UPDATE sales SET customerId = ?, projectId = ? WHERE id = ?`;
+            result = await pool.query(updateQuery, [customerId, projectId, id]);
+        }
+        // } else {
+        //     // ✅ If sale doesn't exist, insert new record
+        //     const insertQuery = `INSERT INTO sales (customerId, projectId) VALUES (?, ?)`;
+        //     result = await pool.query(insertQuery, [customerId, projectId]);
+        // }
+
+        // ✅ Fetch updated sales record
+        const [getResult]: any = await pool.query(`
+            SELECT 
+                s.id,
+                s.customerId,
+                c.customerName,
+                s.projectId,
+                p.projectName,
+                s.salesStatus
+            FROM sales s
+            JOIN customers c ON s.customerId = c.id
+            JOIN projects p ON s.projectId = p.id
+            WHERE s.id = ?`, [id]);
+
+        res.status(200).json({
+            message: existingSale.length > 0 ? "Sales record updated successfully!" : "Sales record added successfully!",
+            ...getResult[0]
+        });
+
+    } catch (error) {
+        console.error("❌ Error adding/updating sales:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+
+export const deleteSale = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { id } = req.params;
+
+        // ✅ Check if the todo exists
+        const [sale]: any = await pool.query(
+            "SELECT * FROM sales WHERE id = ?",
+            [id]
+        );
+
+        if (sale.length === 0) {
+            res.status(404).json({ message: "progress not found!" });
+            return;
+        }
+
+        // ✅ Soft delete: Update `todoStatus` to 'N'
+        const query = `UPDATE sales SET salesStatus = 'N' WHERE id = ?`;
+        await pool.query(query, [id]);
+
+        const [getProgress]:any = `SELECT 
+                s.id,
+                s.customerId,
+                c.customerName,
+                s.projectId,
+                p.projectName,
+                s.salesStatus
+                FROM sales s
+                JOIN customers c ON s.customerId = c.id
+                JOIN projects p ON s.projectId = p.id;`;
+        res.status(200).json({ message: "sale deleted successfully!",
+            ...getProgress[0]
+         });
+
+    } catch (error) {
+        console.error("❌ Error deleting progress:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }  
+}
+
+
+
+
+
+export const addPayment = async (req: Request, res: Response): Promise<void> => {
+    const {payment} = req.body;
 }
