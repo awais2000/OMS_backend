@@ -212,23 +212,29 @@ export const deleteUser = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;  // Get user ID from URL
 
-        const query: string = `DELETE FROM login WHERE id = ?`;  // Correct way to define the query string
-        console.log(id);
+        // ✅ Update user status to 'N' instead of deleting
+        const query: string = `UPDATE login SET loginStatus = 'N' WHERE id = ?`;
+        console.log(`Updating user ${id} status to 'N'`);
 
         // ✅ Execute the query
-        const [result]: any = await pool.query(query, [id]);  // Pass `id` inside an array for parameterized query
+        const [result]: any = await pool.query(query, [id]);
+
+        const [getActiveUsers]: any = await pool.query(`select * from login where loginStatus ='Y'`)
 
         if (result.affectedRows > 0) {
-            res.json({ message: "Customer deleted successfully" });
+            res.json({ message: "User Deleted success!!",
+                ...getActiveUsers
+             });
         } else {
-            res.status(404).json({ message: "Customer not found" });
+            res.status(404).json({ message: "User not found" });
         }
 
     } catch (error) {
-        console.error("❌ Error deleting customer:", error);
+        console.error("❌ Error updating user status:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
+
 
 
 
@@ -242,7 +248,7 @@ export const getAllCustomer = async (req: Request, res: Response): Promise<void>
 
         console.log(`Fetching page ${page} with limit ${limit}`);
         // ✅ Fetch all customers from MySQL
-        const [customers]: any = await pool.query("SELECT * FROM customers");
+        const [customers]: any = await pool.query("SELECT * FROM customers where customerStatus = 'Y'");
 
         // ✅ Check if customers exist
         if (customers.length === 0) {
@@ -361,25 +367,30 @@ export const updateCustomer = async (req: Request, res: Response): Promise<void>
 
 export const deleteCustomer = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { id } = req.params;  // Get user ID from URL
+        const { id } = req.params;  // Get customer ID from URL
 
-        const query: string = `DELETE FROM customers WHERE id = ?`;  // Correct way to define the query string
-        console.log(id);
+        // ✅ Update customer status to 'N' instead of deleting
+        const query: string = `UPDATE customers SET customerStatus = 'N' WHERE id = ?`;
+        console.log(`Updating customer ${id} status to 'N'`);
 
         // ✅ Execute the query
-        const [result]: any = await pool.query(query, [id]);  // Pass `id` inside an array for parameterized query
+        const [result]: any = await pool.query(query, [id]);
+
+        const [getActiveCustomers]: any = await pool.query(`select * from customers where customerStatus ='Y'`)
 
         if (result.affectedRows > 0) {
-            res.json({ message: "Customer deleted successfully" });
+            res.json({ message: "Customer deleted success!",
+                ...getActiveCustomers
+             });
         } else {
             res.status(404).json({ message: "Customer not found" });
         }
 
     } catch (error) {
-        console.error("❌ Error deleting customer:", error);
+        console.error("❌ Error updating customer status:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
-}
+};
 
 
 
@@ -566,9 +577,12 @@ export const deleteAttendance = async (req: Request, res: Response): Promise<voi
         // Execute the query
         const [result]: any = await pool.query(query, [id]);
 
+        const [getActiveUsers]:any = await pool.query(`select * from attendance where attendanceStatus = 'Y'`);
         // Check if the record was updated
         if (result.affectedRows > 0) {
-            res.json({ message: "Attendance status updated successfully to 'N' and other fields nullified." });
+            res.json({ message: "Attendance status updated successfully to 'N' and other fields nullified.",
+                ...getActiveUsers
+             });
         } else {
             res.status(404).json({ message: "Attendance record not found" });
         }
@@ -1374,6 +1388,29 @@ export const deleteTodo = async (req: Request, res: Response): Promise<void> => 
 
 
 
+// getProgress
+export const getProgress = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const query  = `select * from progress`;
+        const [result]:any = await pool.query(query);
+
+        if(result.length ===0){
+            res.send({message:"no users found!"})
+            return;
+        }
+
+        res.status(200).send({message:"progress fetched successfully!",
+            ...result[0]
+        })
+    } catch (error) {
+        console.error("❌ Error deleting todo:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+
+}
+
+
+
 // addProgress
 export const addProgress = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -1504,4 +1541,50 @@ export const deleteProgress = async (req: Request, res: Response): Promise<void>
         console.error("❌ Error deleting progress:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }  
+}
+
+
+
+
+export const addSales = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const {customerName, projectName} = req.body;
+    const [customer]:any  = await pool.query (`select id from customers where customerName = ?`, [customerName]);
+    if(customer.lenght===0){
+        res.send("customer not found!");
+        return;
+    }
+    const customerId  = customer[0].id;
+
+    const [project]:any  = await pool.query (`select id from projects where projectName = ?`, [projectName]);
+    if(project.lenght===0){
+        res.send("customer not found!");
+        return;
+    }
+    const projectId  = project[0].id;
+
+    const query = `insert into sales (customerId, projectId) values (?, ?)`;
+    const values = [customerId, projectId];
+
+    const [result]:any = await pool.query(query, values);
+
+    const [getresult]: any = await pool.query(`SELECT 
+                s.id,
+                s.customerId,
+                c.customerName,
+                s.projectId,
+                p.projectName,
+                s.salesStatus
+            FROM sales s
+            JOIN customers c ON s.customerId = c.id
+            JOIN projects p ON s.projectId = p.id;
+            `)
+
+    res.status(200).send({message: "Sales report added successfully!",
+        ...getresult[0]
+    })
+    } catch (error) {
+        console.error("❌ Error adding sales:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
 }
