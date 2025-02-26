@@ -7,7 +7,7 @@ import { upload } from "../middleware/uploadMiddleware";
 export default (app: Application): void => {
     app.post("/login", login);
 
-    app.get("/admin/getUser", authenticateToken, isAdmin, getAllUsers);
+    app.get("/admin/getUser", getAllUsers);
     
 
     app.post('/admin/addUser',upload.single("image"), authenticateToken, isAdmin, addUser);

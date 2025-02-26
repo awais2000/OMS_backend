@@ -6,6 +6,7 @@ import fs from "fs";
 import path from "path";
 
 
+
 export const login = async (req: Request, res: Response): Promise<void> => {
     try {
         const { email, password } = req.body;
@@ -20,9 +21,24 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         }
 
         const user = users[0];
+        let storedPassword = user.password;
+
+        // ✅ Check if the stored password is already hashed
+        const isHashed = storedPassword.startsWith("$2b$"); // bcrypt-hashed passwords start with "$2b$"
+
+        if (!isHashed) {
+            console.log("⚠️ Detected unencrypted password. Hashing it now...");
+            const hashedPassword = await bcrypt.hash(storedPassword, 10);
+
+            // ✅ Update database with the newly hashed password
+            await pool.query("UPDATE login SET password = ? WHERE email = ?", [hashedPassword, email]);
+            console.log("✅ Password successfully hashed and updated.");
+
+            storedPassword = hashedPassword; // Use the new hashed password for authentication
+        }
 
         // ✅ Compare hashed password using bcrypt
-        const isMatch = await bcrypt.compare(password, user.password);
+        const isMatch = await bcrypt.compare(password, storedPassword);
         if (!isMatch) {
             res.status(400).json({ status: 400, message: "Invalid Username or Password" });
             return;
@@ -54,6 +70,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         res.status(500).json({ status: 500, message: "Internal Server Error" });
     }
 };
+
 
 
 // 🛠 Get All Users Function
@@ -1469,6 +1486,7 @@ export const deleteProgress = async (req: Request, res: Response): Promise<void>
             return;
         }
 
+        // ✅ Soft delete: Update `todoStatus` to 'N'
         const query = `UPDATE progress SET progressStatus = 'N' WHERE id = ?`;
         await pool.query(query, [id]);
 
