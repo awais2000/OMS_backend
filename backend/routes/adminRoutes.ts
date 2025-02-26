@@ -1,5 +1,5 @@
 import { Application } from "express";
-import { getAllUsers, login, addUser, changePassword, updateUser, deleteUser, getAllCustomer, addCustomerInfo, updateCustomer, deleteCustomer, getAttendance, addAttendance, updateAttendance, deleteAttendance, getUsersLeaves, authorizeLeaves, configHolidays, getHolidays, withdrawEmployee, createCatagory, addProject, alterCategory, deleteCategory, alterProjectInfo, deleteProject,  getProjects, assignProject, getAssignProject, alterAssignProject, deleteAssignment, createTodo, alterTodo, deleteTodo, getTodo, addProgress, alterProgress, deleteProgress, getProgress, addSales, alterSalesData, deleteSale, addPayment} from "../controllers/adminController";
+import { getAllUsers, login, addUser, changePassword, updateUser, deleteUser, getAllCustomer, addCustomerInfo, updateCustomer, deleteCustomer, getAttendance, addAttendance, updateAttendance, deleteAttendance, getUsersLeaves, authorizeLeaves, configHolidays, getHolidays, withdrawEmployee, createCatagory, addProject, alterCategory, deleteCategory, alterProjectInfo, deleteProject,  getProjects, assignProject, getAssignProject, alterAssignProject, deleteAssignment, createTodo, alterTodo, deleteTodo, getTodo, addProgress, alterProgress, deleteProgress, getProgress, addSales, alterSalesData, deleteSale, addPayment, getSales, alterPayments, deletePayment, getPayments} from "../controllers/adminController";
 import { authenticateToken, isAdmin } from "../middleware/middleware";
 import { upload } from "../middleware/uploadMiddleware"; 
 
@@ -112,13 +112,22 @@ export default (app: Application): void => {
     
 
     //add sales and payments:
-    app.post('/admin/addSales', addSales);
+    app.get('/admin/getSales',authenticateToken, isAdmin, getSales);
 
-    app.post('/admin/alterSalesData/:id', alterSalesData);
+    app.post('/admin/addSales',authenticateToken, isAdmin, addSales);
 
-    app.patch('/admin/deleteSale/:id', deleteSale);
+    app.post('/admin/alterSalesData/:id',authenticateToken, isAdmin, alterSalesData);
+
+    app.patch('/admin/deleteSale/:id',authenticateToken, isAdmin, deleteSale);
 
 
-    app.post('/admin/addPayment', addPayment);
+
+    app.get('/admin/getPayments',authenticateToken, isAdmin, getPayments);
+
+    app.post('/admin/addPayment',authenticateToken, isAdmin, addPayment);
+
+    app.put('/admin/alterPayments/:id',authenticateToken, isAdmin, alterPayments);
+
+    app.patch('/admin/deletePayment/:id',authenticateToken, isAdmin, deletePayment);
 };
 

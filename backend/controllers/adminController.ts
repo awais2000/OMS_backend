@@ -81,7 +81,7 @@ export const getAllUsers = async (req: Request, res: Response): Promise<void> =>
         let offset = (page - 1) * limit; // ✅ Calculate the offset
 
         console.log(`Fetching page ${page} with limit ${limit}`);
-        const [rows]: any = await pool.query("SELECT * FROM login");
+        const [rows]: any = await pool.query("SELECT * FROM login where loginStatus = 'Y'");
         res.json({ users: rows });
     } catch (error) {
         console.error("Error fetching users:", error);
@@ -425,7 +425,7 @@ export const getAttendance = async (req: Request, res: Response): Promise<void> 
         const { userId } = req.params; // ✅ Get user ID from URL
 
         // ✅ Check if user exists
-        const [user]: any = await pool.query("SELECT * FROM login");
+        const [user]: any = await pool.query("SELECT * FROM login where status = 'Y'");
         
         // ✅ Fetch attendance records for the user
         const [attendance]: any = await pool.query(
@@ -748,7 +748,7 @@ export const configHolidays = async (req: Request, res: Response): Promise<void>
 
 export const getHolidays = async (req: Request, res: Response): Promise<void> => {
     try {
-        const [holidays]: any = await pool.query("SELECT * FROM holidays");
+        const [holidays]: any = await pool.query("SELECT * FROM holidays where holidayStatus= 'Y'");
 
         // ✅ Check if customers exist
         if (holidays.length === 0) {
@@ -990,7 +990,7 @@ export const addProject = async (req: Request, res: Response): Promise<void> => 
 // getProjects
 export const getProjects = async (req: Request, res: Response): Promise<void> => {
     try {
-        const query =   `select * from projects`;
+        const query =   `select * from projects where projectStatus = 'Y'`;
         
         const [result]: any = await pool.query(query);
         res.status(200).send({messsage:"Projects Fetched Successfully!",
@@ -1082,7 +1082,7 @@ export const deleteProject = async (req: Request, res: Response): Promise<void> 
 // assignProject
 export const getAssignProject = async (req: Request, res: Response): Promise<void> => {
     try {
-        const query = `select * from assignedprojects`;
+        const query = `select * from assignedprojects where assignStatus = 'Y'`;
         const [result]:any = await pool.query(query);
 
         res.status(200).send({message: "Assigned Projects Fetched Success!",
@@ -1267,7 +1267,7 @@ export const deleteAssignment = async (req: Request, res: Response): Promise<voi
 // getTodo
 export const getTodo = async (req: Request, res: Response): Promise<void> => {
     try {
-        const [result]: any = await pool.query(`select * from todo`);
+        const [result]: any = await pool.query(`select * from todo where todoStatus = 'Y'`);
         res.status(200).send({message:"todo fetched successfully!",
             ...result[0]
         })
@@ -1411,7 +1411,7 @@ export const deleteTodo = async (req: Request, res: Response): Promise<void> => 
 // getProgress
 export const getProgress = async (req: Request, res: Response): Promise<void> => {
     try {
-        const query  = `select * from progress`;
+        const query  = `select * from progress where progressStatus= 'Y'`;
         const [result]:any = await pool.query(query);
 
         if(result.length ===0){
@@ -1423,7 +1423,7 @@ export const getProgress = async (req: Request, res: Response): Promise<void> =>
             ...result[0]
         })
     } catch (error) {
-        console.error("❌ Error deleting todo:", error);
+        console.error("❌ Error fetching progress:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 
@@ -1563,6 +1563,28 @@ export const deleteProgress = async (req: Request, res: Response): Promise<void>
     }  
 }
 
+
+
+
+// getSales
+export const getSales = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const query  = `select * from sales where salesStatus`;
+        const [result]:any = await pool.query(query);
+
+        if(result.length ===0){
+            res.send({message:"no sales found!"})
+            return;
+        }
+
+        res.status(200).send({message:"sales fetched successfully!",
+            ...result[0]
+        })
+    } catch (error) {
+        console.error("❌ Error fetching sales:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+}
 
 
 
@@ -1716,7 +1738,153 @@ export const deleteSale = async (req: Request, res: Response): Promise<void> => 
 
 
 
+// getPayments
+export const getPayments = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const query  = `select * from payments where paymentStatus = 'Y'`;
+        const [result]:any = await pool.query(query);
+
+        if(result.length ===0){
+            res.send({message:"no payments found!"})
+            return;
+        }
+
+        res.status(200).send({message:"payments fetched successfully!",
+            ...result
+        })
+    } catch (error) {
+        console.error("❌ Error fetching payments:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+}
+
+
 
 export const addPayment = async (req: Request, res: Response): Promise<void> => {
-    const {payment} = req.body;
+    try {
+        const {paymentMethod, customerName, description, amount, date} = req.body;  
+        const [customer]:any = await pool.query(`select id from customers where customerName= ?`, [customerName]);
+        if(customer.lenght===0){
+            res.send({message: "customer not found!"})
+            return;
+        }
+        const customerId = customer[0].id;
+
+        const query = `insert into payments (paymentMethod, customerId, description, amount,  date) values (?, ?, ?, ?, ?)`;
+        const values = [paymentMethod, customerId, description, amount, date];
+
+        const [result]:any = await pool.query(query, values);
+        const [addedPayments]:any = await pool.query(`SELECT 
+                p.paymentMethod, 
+                p.customerId, 
+                c.customerName, 
+                p.description, 
+                p.amount, 
+                p.date
+            FROM payments p
+            JOIN customers c ON p.customerId = c.id;
+            `);
+        res.status(200).send({message:"Payment information added successfully!",
+            ...addedPayments
+        })
+    } catch (error) {
+        console.error("❌ Error adding payment:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+}
+
+
+
+
+
+export const alterPayments = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { id } = req.params; // Payment ID from URL parameters
+        const { paymentMethod, customerName, description, amount, date } = req.body; // New data
+
+        // ✅ Check if the payment record exists
+        const [existingPayment]: any = await pool.query(`SELECT * FROM payments WHERE id = ?`, [id]);
+
+        if (existingPayment.length === 0) {
+            res.status(404).json({ message: "Payment record not found!" });
+            return;
+        }
+
+        // ✅ Fetch customer ID from customerName
+        const [customer]: any = await pool.query(`SELECT id FROM customers WHERE customerName = ?`, [customerName]);
+
+        if (customer.length === 0) {
+            res.status(404).json({ message: "Customer not found!" });
+            return;
+        }
+
+        const customerId = customer[0].id;
+
+        // ✅ Update payment details
+        const updateQuery = `
+            UPDATE payments 
+            SET paymentMethod = ?, customerId = ?, description = ?, amount = ?, date = ?
+            WHERE id = ?
+        `;
+        const values = [paymentMethod, customerId, description, amount, date, id];
+
+        await pool.query(updateQuery, values);
+
+        // ✅ Fetch the updated payment record
+        const [updatedPayment]: any = await pool.query(`
+            SELECT 
+                p.id, 
+                p.paymentMethod, 
+                p.customerId, 
+                c.customerName, 
+                p.description, 
+                p.amount, 
+                p.date
+                FROM payments p
+            JOIN customers c ON p.customerId = c.id
+            WHERE p.id = ?`, [id]);
+
+        res.status(200).json({
+            message: "Payment updated successfully!",
+            ...updatedPayment[0]
+        });
+
+    } catch (error) {
+        console.error("❌ Error updating payment:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+
+export const deletePayment = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { id } = req.params;
+
+        // ✅ Check if the todo exists
+        const [sale]: any = await pool.query(
+            "SELECT * FROM payments WHERE id = ?",
+            [id]
+        );
+
+        if (sale.length === 0) {
+            res.status(404).json({ message: "payments not found!" });
+            return;
+        }
+
+        // ✅ Soft delete: Update `todoStatus` to 'N'
+        const query = `UPDATE payments SET paymentStatus = 'N' WHERE id = ?`;
+        await pool.query(query, [id]);
+
+        const [getProgress]:any = `SELECT     p.id,     p.paymentMethod,     p.customerId,     c.customerName,     p.description,     p.amount,     p.date,     p.paymentStatus
+            FROM payments p
+            JOIN customers c ON p.customerId = c.id;
+            `;
+        res.status(200).json({ message: "sale deleted successfully!",
+            ...getProgress[0]
+         });
+
+    } catch (error) {
+        console.error("❌ Error deleting progress:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }  
 }
