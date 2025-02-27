@@ -113,26 +113,52 @@ export const changePassword = async (req: Request, res: Response): Promise<void>
 
 
 
+export const getuploadfile = async (req: Request, res: Response): Promise<void> => {
+    res.sendFile(path.join(__dirname, 'fileupload.html'));
+};
 
-// 🛠 **Add User Function**
+
+
+export const uploadedFile = async (req: Request, res: Response): Promise<void> => {
+    try {
+        console.log("Uploaded File:", req.file);  // Log the uploaded file
+
+        if (!req.file) {
+            res.status(400).json({ message: "No file uploaded!" });
+            return;
+        }
+
+        const imagePath = req.file ? req.file.path.replace(/\\/g, "/") : null; // ✅ Store uploaded file path
+
+        res.status(200).json({ message: "Upload successful!", imagePath });
+    } catch (error) {
+        console.error("❌ Error uploading file:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+
+
+
+
 export const addUser = async (req: Request, res: Response): Promise<void> => {
     try {
         const { name, email, password, contact, cnic, address, date, role } = req.body;
-        const imagePath = req.file ? req.file.path.replace(/\\/g, "/") : null; // ✅ Store uploaded file path
 
-        console.log("Image Path:", imagePath); // ✅ Debugging Image Path
+        console.log("Uploaded File:", req.file); // Log the uploaded file
+
+        // ✅ If no file is uploaded, imagePath should be NULL
+        const imagePath = req.file?.path.replace(/\\/g, "/") || null;
 
         // ✅ Ensure required fields are present
         if (!name || !email || !password || !cnic || !role) {
-            res.status(400).json({ status: 400, message: "Missing required fields" });
-            return;
+             res.status(400).json({ status: 400, message: "Missing required fields" });
         }
 
         // ✅ Check if user already exists
         const [existingUser]: any = await pool.query("SELECT * FROM login WHERE LOWER(email) = LOWER(?)", [email]);
         if (existingUser.length > 0) {
-            res.status(400).json({ message: "User already exists!" });
-            return;
+             res.status(400).json({ message: "User already exists!" });
         }
 
         // ✅ Hash the password before storing it
@@ -149,7 +175,7 @@ export const addUser = async (req: Request, res: Response): Promise<void> => {
         const [result]: any = await pool.query(query, values);
 
         // ✅ Send success response
-        res.status(201).json({
+         res.status(201).json({
             status: 201,
             message: "User added successfully",
             userId: result.insertId,
@@ -165,9 +191,17 @@ export const addUser = async (req: Request, res: Response): Promise<void> => {
 
     } catch (error) {
         console.error("❌ Error adding user:", error);
-        res.status(500).json({ status: 500, message: "Internal Server Error" });
+         res.status(500).json({ status: 500, message: "Internal Server Error" });
     }
 };
+
+
+
+
+
+
+
+
 
 
 
@@ -239,7 +273,7 @@ export const deleteUser = async (req: Request, res: Response) => {
         // ✅ Execute the query
         const [result]: any = await pool.query(query, [id]);
 
-        const [getActiveUsers]: any = await pool.query(`select * from login where loginStatus ='Y'`)
+        const [getActiveUsers]: any = await pool.query(`select * from login where loginStatus ='Y'`);
 
         if (result.affectedRows > 0) {
             res.json({ message: "User Deleted success!!",

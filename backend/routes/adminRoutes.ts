@@ -1,23 +1,25 @@
 import { Application } from "express";
-import { getAllUsers, login, addUser, changePassword, updateUser, deleteUser, getAllCustomer, addCustomerInfo, updateCustomer, deleteCustomer, getAttendance, addAttendance, updateAttendance, deleteAttendance, getUsersLeaves, authorizeLeaves, configHolidays, getHolidays, withdrawEmployee, createCatagory, addProject, alterCategory, deleteCategory, alterProjectInfo, deleteProject,  getProjects, assignProject, getAssignProject, alterAssignProject, deleteAssignment, createTodo, alterTodo, deleteTodo, getTodo, addProgress, alterProgress, deleteProgress, getProgress, addSales, alterSalesData, deleteSale, addPayment, getSales, alterPayments, deletePayment, getPayments} from "../controllers/adminController";
+import { getAllUsers, login, addUser, changePassword, updateUser, deleteUser, getAllCustomer, addCustomerInfo, updateCustomer, deleteCustomer, getAttendance, addAttendance, updateAttendance, deleteAttendance, getUsersLeaves, authorizeLeaves, configHolidays, getHolidays, withdrawEmployee, createCatagory, addProject, alterCategory, deleteCategory, alterProjectInfo, deleteProject,  getProjects, assignProject, getAssignProject, alterAssignProject, deleteAssignment, createTodo, alterTodo, deleteTodo, getTodo, addProgress, alterProgress, deleteProgress, getProgress, addSales, alterSalesData, deleteSale, addPayment, getSales, alterPayments, deletePayment, getPayments, uploadedFile, getuploadfile} from "../controllers/adminController";
 import { authenticateToken, isAdmin } from "../middleware/middleware";
 import { upload } from "../middleware/uploadMiddleware"; 
-
+import  path  from 'path';
 
 export default (app: Application): void => {
     app.post("/login", login);
 
     app.get("/admin/getUsers", getAllUsers);
     
-    app.post('/admin/addUsers',upload.single("image"), authenticateToken, isAdmin, addUser);
-    // app.post('/admin/addUser',upload.single("image"),  addUser);
+    // app.post('/admin/addUsers',upload.single("image"), authenticateToken, isAdmin, addUser);
+    app.post('/admin/addUser',upload.single("image"),  addUser);
 
     app.put('/admin/changePassword/:id',authenticateToken, isAdmin, changePassword);
+    // app.put('/admin/changePassword/:id', changePassword);
 
-    app.put('/admin/updateUsers/:id', authenticateToken, isAdmin, upload.single("image"), updateUser);
+
+    app.put('/admin/updateUser/:id', authenticateToken, isAdmin, upload.single("image"), updateUser);
     // app.put('/admin/updateUser/:id',   upload.single("document"), updateUser);
 
-    app.patch("/admin/deleteUsers/:id", authenticateToken, isAdmin, deleteUser);
+    app.patch("/admin/deleteUser/:id", authenticateToken, isAdmin, deleteUser);
     // app.patch("/admin/deleteUser/:id",  deleteUser);
 
     //adding Customer Routes:
@@ -27,11 +29,11 @@ export default (app: Application): void => {
     app.post('/admin/addCustomerInfo', authenticateToken, isAdmin, addCustomerInfo); 
     // app.post('/admin/addCustomerInfo', addCustomerInfo);
 
-    app.put('/admin/updateCustomers/:id', authenticateToken, isAdmin, updateCustomer);
+    app.put('/admin/updateCustomer/:id', authenticateToken, isAdmin, updateCustomer);
     // app.put('/admin/updateCustomers/:id',  updateCustomer);
 
 
-    app.patch('/admin/deleteCustomers/:id', authenticateToken, isAdmin, deleteCustomer);
+    app.patch('/admin/deleteCustomer/:id', authenticateToken, isAdmin, deleteCustomer);
     // app.patch('/admin/deleteCustomers/:id',  deleteCustomer);
 
 
@@ -129,5 +131,13 @@ export default (app: Application): void => {
     app.put('/admin/alterPayments/:id',authenticateToken, isAdmin, alterPayments);
 
     app.patch('/admin/deletePayment/:id',authenticateToken, isAdmin, deletePayment);
+
+    
+
+    app.get('/getuploadfile', getuploadfile);
+    app.post('/uploadedFile', upload.single("image"), uploadedFile);
+    
+    
+    
 };
 
