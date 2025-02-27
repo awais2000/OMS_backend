@@ -48,7 +48,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         const token = jwt.sign(
             { email: user.email, role: user.role },
             "your_secret_key",
-            { expiresIn: "1h" }
+            { expiresIn: "24h" }
         );
 
         // ✅ Send success response (excluding password)
@@ -76,11 +76,11 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 // 🛠 Get All Users Function
 export const getAllUsers = async (req: Request, res: Response): Promise<void> => {
     try {
-        let page = parseInt(req.query.page as string) || 1;
-        let limit = parseInt(req.query.limit as string) || 10;
-        let offset = (page - 1) * limit; // ✅ Calculate the offset
-
-        console.log(`Fetching page ${page} with limit ${limit}`);
+        
+        const {page} = req.body;
+        if(page === 10){
+            
+        }
         const [rows]: any = await pool.query("SELECT * FROM login where loginStatus = 'Y'");
         res.json({ users: rows });
     } catch (error) {
@@ -288,7 +288,6 @@ export const deleteUser = async (req: Request, res: Response) => {
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
-
 
 
 

@@ -1,5 +1,6 @@
 import mysql from "mysql2/promise";
 import dotenv from "dotenv";
+import { SocketAddress } from "net";
 
 dotenv.config();
 
@@ -12,5 +13,4 @@ const pool = mysql.createPool({
 });
 
 export default pool; 
-
 
