@@ -209,12 +209,6 @@ export const addUser = async (req: Request, res: Response): Promise<void> => {
 
 
 
-
-
-
-
-
-
 // 🛠 Update User Function (Allows Updating User Info & image)
 export const updateUser = async (req: Request, res: Response): Promise<void> => {
     try {
