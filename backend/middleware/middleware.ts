@@ -32,7 +32,3 @@ export const isAdmin = (req: AuthenticatedRequest, res: Response, next: NextFunc
     }
     next(); // ✅ Ensure `next()` is called
 };
-
-
-
-

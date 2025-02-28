@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import pool from "../database/db"; // ✅ Import MySQL connection
+import pool from "../database/db"; 
 
 // 🛠 Get Attendance Function (Now Properly Checks User Existence)
 export const getAttendance = async (req: Request, res: Response) => {
@@ -39,7 +39,7 @@ export const getAttendance = async (req: Request, res: Response) => {
             message: "Attendance records fetched successfully",
             ...attendance[0]
         });
-
+ 
     } catch (error) {
         console.error("❌ Error fetching attendance:", error);
         res.status(500).json({ status: 500, message: "Internal Server Error" });
@@ -145,6 +145,10 @@ export const markAttendance = async (req: Request, res: Response): Promise<void>
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
+
+
+
+
 export const addLeave = async (req: Request, res: Response): Promise<void> => {
     try {
         const user_id = (req as any).user.id; // ✅ Get user ID from authenticated token

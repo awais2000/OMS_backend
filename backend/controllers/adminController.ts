@@ -143,7 +143,6 @@ export const uploadedFile = async (req: Request, res: Response): Promise<void> =
 
 
 
-
 export const addUser = async (req: Request, res: Response): Promise<void> => {
     try {
         const { name, email, password, contact, cnic, address, date, role } = req.body;
@@ -531,6 +530,108 @@ export const addAttendance = async (req: Request, res: Response): Promise<void> 
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
+
+
+
+
+// markAttendance
+// 🛠 Mark Attendance Function (Handles Both Clock In & Clock Out + Auto Absent Marking)
+export const markAttendance = async (req: Request, res: Response): Promise<void> => {
+    try {
+        
+        const userId = req.params.id;
+        console.log("User ID:", userId);
+
+        // ✅ Check if the user exists in the `login` table
+        const [user]: any = await pool.query(
+            "SELECT id FROM login WHERE id = ?",
+            [userId]
+        );
+
+        if (user.length === 0) {
+            res.status(404).json({ status: 404, message: "User not found" });
+            return;
+        }
+
+        // ✅ Check if the user has already clocked in today
+        const [existingAttendance]: any = await pool.query(
+            "SELECT userId, clockIn, clockOut FROM attendance WHERE userId = ? AND date = CURDATE()",
+            [userId]
+        );
+
+        if (existingAttendance.length === 0) {
+            // ✅ Check if the user missed attendance for the last 24 hours
+            const [lastAttendance]: any = await pool.query(
+                "SELECT date FROM attendance WHERE userId = ? ORDER BY date DESC LIMIT 1",
+                [userId]
+            );
+
+            if (lastAttendance.length > 0) {
+                const lastDate = new Date(lastAttendance[0].date);
+                const currentDate = new Date();
+
+                // ✅ Check if more than 24 hours (1 day) has passed
+                const timeDiff = Math.abs(currentDate.getTime() - lastDate.getTime());
+                const diffDays = Math.ceil(timeDiff / (1000 * 3600 * 24));
+
+                if (diffDays >= 1) {
+                    // ✅ Mark user as absent for missing attendance
+                    await pool.query(`
+                        INSERT INTO attendance (userId, clockIn, clockOut, date, day, attendanceStatus)
+                        VALUES (?, NULL, NULL, CURDATE() - INTERVAL 1 DAY, DAYNAME(CURDATE() - INTERVAL 1 DAY), 'Absent')
+                    `, [userId]);
+                }
+            }
+
+            // ✅ User is clockIng in for the first time today
+            const query = `
+                INSERT INTO attendance (
+                    userId, clockIn, clockOut, date, day, attendanceStatus)
+                    VALUES (?, CURRENT_TIMESTAMP(), NULL, CURDATE(), DAYNAME(CURDATE()), 'Present')
+            `;
+
+            const values = [userId];
+            const [result]: any = await pool.query(query, values);
+
+            res.status(201).json({
+                message: "Clock-in recorded successfully",
+                attendanceId: result.insertId
+            });
+
+        } else if (existingAttendance[0].clockOut === null) {
+            // ✅ User is clockIng out
+            const query = `
+                UPDATE attendance 
+                SET clockOut = CURRENT_TIMESTAMP()
+                WHERE userId = ? AND date = CURDATE()
+            `;
+
+            const values = [userId];
+            await pool.query(query, values);
+
+            const [attendance]: any = await pool.query(
+                "SELECT * FROM attendance WHERE userId = ?",
+                [userId]
+            );
+
+            res.status(200).json({
+                message: "Clock-out recorded successfully",
+                ...attendance[0]
+            });
+
+        } else {
+            // ✅ User has already clocked in and clocked out today
+            res.status(400).json({
+                message: "You have already marked Attendance for today!"
+            });
+        }
+
+    } catch (error) {
+        console.error("❌ Error marking attendance:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
 
 
 //updating attendance
