@@ -48,7 +48,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         const token = jwt.sign(
             { email: user.email, role: user.role },
             "your_secret_key",
-            { expiresIn: "60m" }
+            { expiresIn: "1h" }
         );
 
         // ✅ Send success response (excluding password)
@@ -73,24 +73,21 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
 
 
+// 🛠 Get All Users Function
 export const getAllUsers = async (req: Request, res: Response): Promise<void> => {
     try {
-        const entry = parseInt(req.params.entry, 10); // Convert entry to a number
+        let page = parseInt(req.query.page as string) || 1;
+        let limit = parseInt(req.query.limit as string) || 10;
+        let offset = (page - 1) * limit; // ✅ Calculate the offset
 
-        // ✅ Default to 10 entries if `entry` is invalid or not provided
-        const limit = !isNaN(entry) && entry > 0 ? entry : 10;
-
-        // ✅ Fetch users with a limit based on `entry`
-        const [rows]: any = await pool.query("SELECT * FROM login WHERE loginStatus = 'Y' LIMIT ?", [limit]);
-
-        res.json( rows );
-
+        console.log(`Fetching page ${page} with limit ${limit}`);
+        const [rows]: any = await pool.query("SELECT * FROM login");
+        res.json({ users: rows });
     } catch (error) {
-        console.error("❌ Error fetching users:", error);
+        console.error("Error fetching users:", error);
         res.status(500).json({ error: "Database query failed" });
     }
 };
-
 
 
 
@@ -116,58 +113,26 @@ export const changePassword = async (req: Request, res: Response): Promise<void>
 
 
 
-export const getuploadfile = async (req: Request, res: Response): Promise<void> => {
-    res.sendFile(path.join(__dirname, 'fileupload.html'));
-};
 
-
-
-export const uploadedFile = async (req: Request, res: Response): Promise<void> => {
-    try {
-        console.log("Uploaded File:", req.file);  // Log the uploaded file
-
-        if (!req.file) {
-            res.status(400).json({ message: "No file uploaded!" });
-            return;
-        }
-
-        const imagePath = req.file ? req.file.path.replace(/\\/g, "/") : null; // ✅ Store uploaded file path
-
-        res.status(200).json({ message: "Upload successful!", imagePath });
-    } catch (error) {
-        console.error("❌ Error uploading file:", error);
-        res.status(500).json({ message: "Internal Server Error" });
-    }
-};
-
-
-
-
-
+// 🛠 **Add User Function**
 export const addUser = async (req: Request, res: Response): Promise<void> => {
     try {
         const { name, email, password, contact, cnic, address, date, role } = req.body;
-
-        console.log("Uploaded File:", req.file);  // Log the uploaded file
-
-        if (!req.file) {
-            res.status(400).json({ message: "No file uploaded!" });
-            return;
-        }
-
         const imagePath = req.file ? req.file.path.replace(/\\/g, "/") : null; // ✅ Store uploaded file path
 
-        res.status(200).json({ message: "Upload successful!", imagePath });
+        console.log("Image Path:", imagePath); // ✅ Debugging Image Path
 
         // ✅ Ensure required fields are present
         if (!name || !email || !password || !cnic || !role) {
-             res.status(400).json({ status: 400, message: "Missing required fields" });
+            res.status(400).json({ status: 400, message: "Missing required fields" });
+            return;
         }
 
         // ✅ Check if user already exists
         const [existingUser]: any = await pool.query("SELECT * FROM login WHERE LOWER(email) = LOWER(?)", [email]);
         if (existingUser.length > 0) {
-             res.status(400).json({ message: "User already exists!" });
+            res.status(400).json({ message: "User already exists!" });
+            return;
         }
 
         // ✅ Hash the password before storing it
@@ -184,7 +149,7 @@ export const addUser = async (req: Request, res: Response): Promise<void> => {
         const [result]: any = await pool.query(query, values);
 
         // ✅ Send success response
-         res.status(201).json({
+        res.status(201).json({
             status: 201,
             message: "User added successfully",
             userId: result.insertId,
@@ -200,17 +165,9 @@ export const addUser = async (req: Request, res: Response): Promise<void> => {
 
     } catch (error) {
         console.error("❌ Error adding user:", error);
-         res.status(500).json({ status: 500, message: "Internal Server Error" });
+        res.status(500).json({ status: 500, message: "Internal Server Error" });
     }
 };
-
-
-
-
-
-
-
-
 
 
 
@@ -282,7 +239,7 @@ export const deleteUser = async (req: Request, res: Response) => {
         // ✅ Execute the query
         const [result]: any = await pool.query(query, [id]);
 
-        const [getActiveUsers]: any = await pool.query(`select * from login where loginStatus ='Y'`);
+        const [getActiveUsers]: any = await pool.query(`select * from login where loginStatus ='Y'`)
 
         if (result.affectedRows > 0) {
             res.json({ message: "User Deleted success!!",
@@ -301,13 +258,17 @@ export const deleteUser = async (req: Request, res: Response) => {
 
 
 
+
 // 🛠 Get All Customers Function
 export const getAllCustomer = async (req: Request, res: Response): Promise<void> => {
     try {
-        const entry = parseInt(req.params.entry, 10);
-        console.log(entry);
-        const limit = !isNaN(entry) && entry > 0 ? entry : 10;
-        const [customers]: any = await pool.query("SELECT * FROM customers where customerStatus = 'Y' LIMIT ?", [limit]);
+        let page = parseInt(req.query.page as string) || 1;
+        let limit = parseInt(req.query.limit as string) || 10;
+        let offset = (page - 1) * limit; // ✅ Calculate the offset
+
+        console.log(`Fetching page ${page} with limit ${limit}`);
+        // ✅ Fetch all customers from MySQL
+        const [customers]: any = await pool.query("SELECT * FROM customers where customerStatus = 'Y'");
 
         // ✅ Check if customers exist
         if (customers.length === 0) {
@@ -315,10 +276,12 @@ export const getAllCustomer = async (req: Request, res: Response): Promise<void>
             return;
         }
 
-        
-
-        res.status(200).json(["customers fetched successfully!", ...customers]);
-
+        // ✅ Send response with customer data
+        res.status(200).json({
+            status: 200,
+            message: "Customers fetched successfully",
+            ...customers[0] 
+        });
 
     } catch (error) {
         console.error("❌ Error fetching customers:", error);
@@ -454,13 +417,20 @@ export const deleteCustomer = async (req: Request, res: Response): Promise<void>
 // 🛠 Get Attendance Function
 export const getAttendance = async (req: Request, res: Response): Promise<void> => {
     try {
-        const entry = parseInt(req.params.entry, 10);
-        console.log(entry);
-        const limit = !isNaN(entry) && entry > 0 ? entry : 10;
+        let page = parseInt(req.query.page as string) || 1;
+        let limit = parseInt(req.query.limit as string) || 10;
+        let offset = (page - 1) * limit; // ✅ Calculate the offset
+
+        console.log(`Fetching page ${page} with limit ${limit}`);
+        const { userId } = req.params; // ✅ Get user ID from URL
+
+        // ✅ Check if user exists
+        const [user]: any = await pool.query("SELECT * FROM login");
         
         // ✅ Fetch attendance records for the user
         const [attendance]: any = await pool.query(
-            "SELECT * FROM attendance where status= 'Y' LIMIT ? ", [limit]
+            "SELECT * FROM attendance",
+            [userId]
         );
 
         if (attendance.length === 0) {
@@ -472,7 +442,7 @@ export const getAttendance = async (req: Request, res: Response): Promise<void> 
         res.status(200).json({
             status: 200,
             message: "Attendance records fetched successfully",
-            ...attendance
+            ...attendance[0]
         });
 
     } catch (error) {
@@ -648,9 +618,12 @@ export const deleteAttendance = async (req: Request, res: Response): Promise<voi
 export const getUsersLeaves = async (req: Request, res: Response): Promise<void> => {
     try {
 
-        const entry = parseInt(req.params.entry, 10);
-        console.log(entry);
-        const limit = !isNaN(entry) && entry > 0 ? entry : 10;
+        let page = parseInt(req.query.page as string) || 1;
+        let limit = parseInt(req.query.limit as string) || 10;
+        let offset = (page - 1) * limit; // ✅ Calculate the offset
+
+        console.log(`Fetching page ${page} with limit ${limit}`);
+        // ✅ SQL Query to Fetch Attendance with User Names
         const query = `
             SELECT 
                 a.userId,
@@ -662,11 +635,10 @@ export const getUsersLeaves = async (req: Request, res: Response): Promise<void>
                 a.leaveApprovalStatus
             FROM attendance a
             JOIN login l ON a.userId = l.id
-            ORDER BY a.date DESC LIMIT ?
+            ORDER BY a.date DESC;
         `;
 
-            const values = [limit];
-        const [attendance]: any = await pool.query(query, values);
+        const [attendance]: any = await pool.query(query);
 
         if (attendance.length === 0) {
             res.status(404).json({ message: "No attendance records found" });
@@ -776,10 +748,7 @@ export const configHolidays = async (req: Request, res: Response): Promise<void>
 
 export const getHolidays = async (req: Request, res: Response): Promise<void> => {
     try {
-        const entry = parseInt(req.params.entry, 10);
-        console.log(entry);
-        const limit = !isNaN(entry) && entry > 0 ? entry : 10;
-        const [holidays]: any = await pool.query("SELECT * FROM holidays where holidayStatus= 'Y' LIMIT ? ", [limit]);
+        const [holidays]: any = await pool.query("SELECT * FROM holidays");
 
         // ✅ Check if customers exist
         if (holidays.length === 0) {
@@ -791,7 +760,7 @@ export const getHolidays = async (req: Request, res: Response): Promise<void> =>
         res.status(200).json({
             status: 200,
             message: "holidays fetched successfully",
-            ...holidays
+            ...holidays[0] 
         });
     } catch (error) {
         console.error("❌ Error fetching holidays:", error);
@@ -840,26 +809,6 @@ export const withdrawEmployee = async (req: Request, res: Response): Promise<voi
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
-
-// getCategory
-export const getCategory = async (req: Request, res: Response): Promise<void> => {
-    try {
-        const entry = parseInt(req.params.entry, 10);
-        console.log(entry);
-        const limit = !isNaN(entry) && entry > 0 ? entry : 10;
-        const query =   `select * from categories where categoryStatus = 'Y' LIMIT ?`;
-        const values = [limit];
-        const [result]: any = await pool.query(query, values);
-        res.status(200).send({messsage:"categories Fetched Successfully!",
-            ...result
-        }
-        )
-    } catch (error) {
-        console.error("❌ Error fetching categories:", error);
-        res.status(500).json({ message: "Internal Server Error" });
-    }
-}
-
 
 
 
@@ -1041,12 +990,9 @@ export const addProject = async (req: Request, res: Response): Promise<void> => 
 // getProjects
 export const getProjects = async (req: Request, res: Response): Promise<void> => {
     try {
-        const entry = parseInt(req.params.entry, 10);
-        console.log(entry);
-        const limit = !isNaN(entry) && entry > 0 ? entry : 10;
-        const query =   `select * from projects where projectStatus = 'Y' LIMIT ?`;
-        const values = [limit];
-        const [result]: any = await pool.query(query, values);
+        const query =   `select * from projects`;
+        
+        const [result]: any = await pool.query(query);
         res.status(200).send({messsage:"Projects Fetched Successfully!",
             ...result
         }
@@ -1136,15 +1082,11 @@ export const deleteProject = async (req: Request, res: Response): Promise<void> 
 // assignProject
 export const getAssignProject = async (req: Request, res: Response): Promise<void> => {
     try {
-        const entry = parseInt(req.params.entry, 10);
-        console.log(entry);
-        const limit = !isNaN(entry) && entry > 0 ? entry : 10;
-        const query = `select * from assignedprojects where assignStatus = 'Y' LIMIT ?`;
-        const values = [limit];
-        const [result]:any = await pool.query(query ,values);
+        const query = `select * from assignedprojects`;
+        const [result]:any = await pool.query(query);
 
         res.status(200).send({message: "Assigned Projects Fetched Success!",
-            ...result
+            ...result[0]
             })
     } catch (error) {
         console.error("❌ Error Fetching Assigned Projects:", error);
@@ -1325,12 +1267,9 @@ export const deleteAssignment = async (req: Request, res: Response): Promise<voi
 // getTodo
 export const getTodo = async (req: Request, res: Response): Promise<void> => {
     try {
-        const entry = parseInt(req.params.entry, 10);
-        console.log(entry);
-        const limit = !isNaN(entry) && entry > 0 ? entry : 10;
-        const [result]: any = await pool.query(`select * from todo where todoStatus = 'Y' LIMIT ?`, [limit]);
+        const [result]: any = await pool.query(`select * from todo`);
         res.status(200).send({message:"todo fetched successfully!",
-            ...result
+            ...result[0]
         })
     } catch (error) {
         console.error("❌ Error fetching todo!:", error);
@@ -1472,11 +1411,8 @@ export const deleteTodo = async (req: Request, res: Response): Promise<void> => 
 // getProgress
 export const getProgress = async (req: Request, res: Response): Promise<void> => {
     try {
-        const entry = parseInt(req.params.entry, 10);
-        console.log(entry);
-        const limit = !isNaN(entry) && entry > 0 ? entry : 10;
-        const query  = `select * from progress where progressStatus= 'Y' LIMIT ?`;
-        const [result]:any = await pool.query(query, [limit]);
+        const query  = `select * from progress`;
+        const [result]:any = await pool.query(query);
 
         if(result.length ===0){
             res.send({message:"no users found!"})
@@ -1487,7 +1423,7 @@ export const getProgress = async (req: Request, res: Response): Promise<void> =>
             ...result[0]
         })
     } catch (error) {
-        console.error("❌ Error fetching progress:", error);
+        console.error("❌ Error deleting todo:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 
@@ -1627,31 +1563,6 @@ export const deleteProgress = async (req: Request, res: Response): Promise<void>
     }  
 }
 
-
-
-
-// getSales
-export const getSales = async (req: Request, res: Response): Promise<void> => {
-    try {
-        const entry = parseInt(req.params.entry, 10);
-        console.log(entry);
-        const limit = !isNaN(entry) && entry > 0 ? entry : 10;
-        const query  = `select * from sales where salesStatus = 'Y' LIMIT ?`;
-        const [result]:any = await pool.query(query, [limit]);
-
-        if(result.length ===0){
-            res.send({message:"no sales found!"})
-            return;
-        }
-
-        res.status(200).send({message:"sales fetched successfully!",
-            ...result
-        })
-    } catch (error) {
-        console.error("❌ Error fetching sales:", error);
-        res.status(500).json({ message: "Internal Server Error" });
-    }
-}
 
 
 
@@ -1805,156 +1716,7 @@ export const deleteSale = async (req: Request, res: Response): Promise<void> => 
 
 
 
-// getPayments
-export const getPayments = async (req: Request, res: Response): Promise<void> => {
-    try {
-        const entry = parseInt(req.params.entry, 10);
-        console.log(entry);
-        const limit = !isNaN(entry) && entry > 0 ? entry : 10;
-        const query  = `select * from payments where paymentStatus = 'Y' LIMIT ?`;
-        const [result]:any = await pool.query(query, [limit]);
-
-        if(result.length ===0){
-            res.send({message:"no payments found!"})
-            return;
-        }
-
-        res.status(200).send({message:"payments fetched successfully!",
-            ...result
-        })
-    } catch (error) {
-        console.error("❌ Error fetching payments:", error);
-        res.status(500).json({ message: "Internal Server Error" });
-    }
-}
-
-
 
 export const addPayment = async (req: Request, res: Response): Promise<void> => {
-    try {
-        const {paymentMethod, customerName, description, amount, date} = req.body;  
-        const [customer]:any = await pool.query(`select id from customers where customerName= ?`, [customerName]);
-        if(customer.lenght===0){
-            res.send({message: "customer not found!"})
-            return;
-        }
-        const customerId = customer[0].id;
-
-        const query = `insert into payments (paymentMethod, customerId, description, amount,  date) values (?, ?, ?, ?, ?)`;
-        const values = [paymentMethod, customerId, description, amount, date];
-
-        const [result]:any = await pool.query(query, values);
-        const [addedPayments]:any = await pool.query(`SELECT 
-                p.paymentMethod, 
-                p.customerId, 
-                c.customerName, 
-                p.description, 
-                p.amount, 
-                p.date
-            FROM payments p
-            JOIN customers c ON p.customerId = c.id;
-            `);
-        res.status(200).send({message:"Payment information added successfully!",
-            ...addedPayments
-        })
-    } catch (error) {
-        console.error("❌ Error adding payment:", error);
-        res.status(500).json({ message: "Internal Server Error" });
-    }
-}
-
-
-
-
-
-export const alterPayments = async (req: Request, res: Response): Promise<void> => {
-    try {
-        const { id } = req.params; // Payment ID from URL parameters
-        const { paymentMethod, customerName, description, amount, date } = req.body; // New data
-
-        // ✅ Check if the payment record exists
-        const [existingPayment]: any = await pool.query(`SELECT * FROM payments WHERE id = ?`, [id]);
-
-        if (existingPayment.length === 0) {
-            res.status(404).json({ message: "Payment record not found!" });
-            return;
-        }
-
-        // ✅ Fetch customer ID from customerName
-        const [customer]: any = await pool.query(`SELECT id FROM customers WHERE customerName = ?`, [customerName]);
-
-        if (customer.length === 0) {
-            res.status(404).json({ message: "Customer not found!" });
-            return;
-        }
-
-        const customerId = customer[0].id;
-
-        // ✅ Update payment details
-        const updateQuery = `
-            UPDATE payments 
-            SET paymentMethod = ?, customerId = ?, description = ?, amount = ?, date = ?
-            WHERE id = ?
-        `;
-        const values = [paymentMethod, customerId, description, amount, date, id];
-
-        await pool.query(updateQuery, values);
-
-        // ✅ Fetch the updated payment record
-        const [updatedPayment]: any = await pool.query(`
-            SELECT 
-                p.id, 
-                p.paymentMethod, 
-                p.customerId, 
-                c.customerName, 
-                p.description, 
-                p.amount, 
-                p.date
-                FROM payments p
-            JOIN customers c ON p.customerId = c.id
-            WHERE p.id = ?`, [id]);
-
-        res.status(200).json({
-            message: "Payment updated successfully!",
-            ...updatedPayment[0]
-        });
-
-    } catch (error) {
-        console.error("❌ Error updating payment:", error);
-        res.status(500).json({ message: "Internal Server Error" });
-    }
-};
-
-
-export const deletePayment = async (req: Request, res: Response): Promise<void> => {
-    try {
-        const { id } = req.params;
-
-        // ✅ Check if the todo exists
-        const [sale]: any = await pool.query(
-            "SELECT * FROM payments WHERE id = ?",
-            [id]
-        );
-
-        if (sale.length === 0) {
-            res.status(404).json({ message: "payments not found!" });
-            return;
-        }
-
-        // ✅ Soft delete: Update `todoStatus` to 'N'
-        const query = `UPDATE payments SET paymentStatus = 'N' WHERE id = ?`;
-        await pool.query(query, [id]);
-
-        const [getProgress]:any = `SELECT     p.id,     p.paymentMethod,     p.customerId,     c.customerName,     p.description,     p.amount,     p.date,     p.paymentStatus
-            FROM payments p
-            JOIN customers c ON p.customerId = c.id;
-            `;
-        res.status(200).json({ message: "sale deleted successfully!",
-            ...getProgress[0]
-         });
-
-    } catch (error) {
-        console.error("❌ Error deleting progress:", error);
-        res.status(500).json({ message: "Internal Server Error" });
-    }  
+    const {payment} = req.body;
 }
