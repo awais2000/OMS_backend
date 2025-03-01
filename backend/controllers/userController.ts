@@ -49,10 +49,9 @@ export const getAttendance = async (req: Request, res: Response) => {
 
 
 
-// 🛠 Mark Attendance Function (Handles Both Clock In & Clock Out + Auto Absent Marking)
+
 export const markAttendance = async (req: Request, res: Response): Promise<void> => {
     try {
-        
         const userId = req.params.id;
         console.log("User ID:", userId);
 
@@ -74,7 +73,7 @@ export const markAttendance = async (req: Request, res: Response): Promise<void>
         );
 
         if (existingAttendance.length === 0) {
-            // ✅ Check if the user missed attendance for the last 24 hours
+            // ✅ Marking User as Absent if they missed attendance
             const [lastAttendance]: any = await pool.query(
                 "SELECT date FROM attendance WHERE userId = ? ORDER BY date DESC LIMIT 1",
                 [userId]
@@ -84,28 +83,26 @@ export const markAttendance = async (req: Request, res: Response): Promise<void>
                 const lastDate = new Date(lastAttendance[0].date);
                 const currentDate = new Date();
 
-                // ✅ Check if more than 24 hours (1 day) has passed
+                // ✅ If user missed attendance for a day
                 const timeDiff = Math.abs(currentDate.getTime() - lastDate.getTime());
                 const diffDays = Math.ceil(timeDiff / (1000 * 3600 * 24));
 
                 if (diffDays >= 1) {
-                    // ✅ Mark user as absent for missing attendance
                     await pool.query(`
-                        INSERT INTO attendance (userId, clockIn, clockOut, date, day, attendanceStatus)
-                        VALUES (?, NULL, NULL, CURDATE() - INTERVAL 1 DAY, DAYNAME(CURDATE() - INTERVAL 1 DAY), 'Absent')
+                        INSERT INTO attendance (userId, clockIn, clockOut, date, day, attendanceStatus, workingHours)
+                        VALUES (?, NULL, NULL, CURDATE() - INTERVAL 1 DAY, DAYNAME(CURDATE() - INTERVAL 1 DAY), 'Absent', NULL)
                     `, [userId]);
                 }
             }
 
-            // ✅ User is clockIng in for the first time today
+            // ✅ Clock In Logic
             const query = `
                 INSERT INTO attendance (
-                    userId, clockIn, clockOut, date, day, attendanceStatus)
-                    VALUES (?, CURRENT_TIMESTAMP(), NULL, CURDATE(), DAYNAME(CURDATE()), 'Present')
+                    userId, clockIn, clockOut, date, day, attendanceStatus, workingHours
+                ) VALUES (?, CURRENT_TIMESTAMP(), NULL, CURDATE(), DAYNAME(CURDATE()), 'Present', NULL)
             `;
 
-            const values = [userId];
-            const [result]: any = await pool.query(query, values);
+            const [result]: any = await pool.query(query, [userId]);
 
             res.status(201).json({
                 message: "Clock-in recorded successfully",
@@ -113,18 +110,17 @@ export const markAttendance = async (req: Request, res: Response): Promise<void>
             });
 
         } else if (existingAttendance[0].clockOut === null) {
-            // ✅ User is clockIng out
+            // ✅ Clock Out & Calculate Working Hours
             const query = `
                 UPDATE attendance 
-                SET clockOut = CURRENT_TIMESTAMP()
+                SET clockOut = CURRENT_TIMESTAMP(), workingHours = TIMESTAMPDIFF(HOUR, clockIn, CURRENT_TIMESTAMP())
                 WHERE userId = ? AND date = CURDATE()
             `;
 
-            const values = [userId];
-            await pool.query(query, values);
+            await pool.query(query, [userId]);
 
             const [attendance]: any = await pool.query(
-                "SELECT * FROM attendance WHERE userId = ?",
+                "SELECT * FROM attendance WHERE userId = ? AND date = CURDATE()",
                 [userId]
             );
 
@@ -134,9 +130,8 @@ export const markAttendance = async (req: Request, res: Response): Promise<void>
             });
 
         } else {
-            // ✅ User has already clocked in and clocked out today
             res.status(400).json({
-                message: "You have already marked Attendance for today!"
+                message: "You have already marked attendance for today!"
             });
         }
 
@@ -145,7 +140,6 @@ export const markAttendance = async (req: Request, res: Response): Promise<void>
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
-
 
 
 
