@@ -8,7 +8,6 @@ import  path  from 'path';
 export default (app: Application): void => {
     app.post("/login", login);
 
-
     app.get("/admin/getUsers/:entry",authenticateToken, isAdmin, getAllUsers);
     // app.get("/admin/getUsers/:entry",getAllUsers);
 
@@ -24,6 +23,9 @@ export default (app: Application): void => {
     app.patch("/admin/deleteUser/:id", authenticateToken, isAdmin, deleteUser);
     // app.patch("/admin/deleteUser/:id",  deleteUser);
 
+
+
+
     //adding Customer Routes:
     app.get('/admin/getAllCustomers/:entry', authenticateToken, isAdmin, getAllCustomer);
     // app.get('/admin/getAllCustomers/:entry', getAllCustomer); 
@@ -34,22 +36,22 @@ export default (app: Application): void => {
     // app.put('/admin/updateCustomer/:id', authenticateToken, isAdmin, updateCustomer);
     app.put('/admin/updateCustomers/:id',  updateCustomer);
 
-
     app.patch('/admin/deleteCustomer/:id', authenticateToken, isAdmin, deleteCustomer);
     // app.patch('/admin/deleteCustomers/:id',  deleteCustomer);
+
+
+
+
 
 
     //for attendance
     // app.get('/admin/getAttendance/:entry', authenticateToken, isAdmin, getAttendance); 
     app.get('/admin/getAttendance/:entry', getAttendance);
 
-
     app.post('/admin/markAttendance/:id',  markAttendance);
-
 
     // app.post('/admin/addAttendance', authenticateToken, isAdmin, addAttendance);
     app.post('/admin/addAttendance', addAttendance);
-
 
     app.put('/admin/updateAttendance/:id', authenticateToken, isAdmin, updateAttendance);
     // app.put('/admin/updateAttendance/:id', updateAttendance);
@@ -63,6 +65,8 @@ export default (app: Application): void => {
     app.put('/admin/authorizeLeaves/:id', authenticateToken, isAdmin, authorizeLeaves);
     // app.put('/admin/authorizeLeaves/:id', authorizeLeaves);
 
+
+
     app.get('/admin/getHolidays/:entry', authenticateToken, isAdmin, getHolidays);
     // app.get('/admin/getHolidays/:entry', getHolidays);
 
@@ -71,6 +75,10 @@ export default (app: Application): void => {
 
     app.post('/admin/withdrawEmployees', authenticateToken, isAdmin, withdrawEmployee);
     // app.post('/admin/withdrawEmployee', withdrawEmployee);
+
+
+
+
 
 
     //--------> add Catagory:
@@ -83,6 +91,9 @@ export default (app: Application): void => {
     app.patch('/admin/deleteCategory/:id',authenticateToken, isAdmin, deleteCategory);
 
 
+
+
+
     //======>add project:
     app.get('/admin/getProjects/:entry',authenticateToken, isAdmin, getProjects);
 
@@ -92,6 +103,9 @@ export default (app: Application): void => {
 
     app.patch('/admin/deleteProject/:id',authenticateToken, isAdmin, deleteProject);
 
+
+
+
     // ======> assign project:
     app.get('/admin/getAssignProjects/:entry',authenticateToken, isAdmin, getAssignProject);
 
@@ -100,6 +114,8 @@ export default (app: Application): void => {
     app.put('/admin/alterAssignProject/:id',authenticateToken, isAdmin, alterAssignProject);
 
     app.patch('/admin/deleteAssignment/:id',authenticateToken, isAdmin, deleteAssignment);
+
+
 
 
 
@@ -122,6 +138,10 @@ export default (app: Application): void => {
     app.patch('/admin/deleteProgress/:id',authenticateToken, isAdmin, deleteProgress); 
     
 
+
+
+
+
     //add sales and payments:
     app.get('/admin/getSales/:entry',authenticateToken, isAdmin, getSales);
 
@@ -133,6 +153,8 @@ export default (app: Application): void => {
 
 
 
+
+
     app.get('/admin/getPayments/:entry',authenticateToken, isAdmin, getPayments);
 
     app.post('/admin/addPayment',authenticateToken, isAdmin, addPayment);
@@ -140,6 +162,8 @@ export default (app: Application): void => {
     app.put('/admin/alterPayments/:id',authenticateToken, isAdmin, alterPayments);
 
     app.patch('/admin/deletePayment/:id',authenticateToken, isAdmin, deletePayment);
+
+    
 
     
 

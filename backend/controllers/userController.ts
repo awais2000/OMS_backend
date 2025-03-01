@@ -48,24 +48,12 @@ export const getAttendance = async (req: Request, res: Response) => {
 
 
 
-
-
 export const markAttendance = async (req: Request, res: Response): Promise<void> => {
     try {
         const userId = req.params.id;
         console.log("User ID:", userId);
 
-        // ✅ Check if the user exists in the `login` table
-        const [user]: any = await pool.query(
-            "SELECT id FROM login WHERE id = ?",
-            [userId]
-        );
-
-        if (user.length === 0) {
-            res.status(404).json({ status: 404, message: "User not found" });
-            return;
-        }
-
+ 
         // ✅ Check if the user has already clocked in today
         const [existingAttendance]: any = await pool.query(
             "SELECT userId, clockIn, clockOut FROM attendance WHERE userId = ? AND date = CURDATE()",
@@ -83,17 +71,21 @@ export const markAttendance = async (req: Request, res: Response): Promise<void>
                 const lastDate = new Date(lastAttendance[0].date);
                 const currentDate = new Date();
 
-                // ✅ If user missed attendance for a day
-                const timeDiff = Math.abs(currentDate.getTime() - lastDate.getTime());
-                const diffDays = Math.ceil(timeDiff / (1000 * 3600 * 24));
+                const timeDiffMs = Math.abs(currentDate.getTime() - lastDate.getTime()); // Time difference in milliseconds
 
-                if (diffDays >= 1) {
+                const hours = Math.floor(timeDiffMs / (1000 * 60 * 60)); // Convert to hours
+                const minutes = Math.floor((timeDiffMs % (1000 * 60 * 60)) / (1000 * 60)); // Get remaining minutes
+
+                const diffTimeInHours = hours + minutes / 60; // Convert "HH:MM" to decimal (e.g., 1.5 hours)
+
+                if (diffTimeInHours >= 1) {
                     await pool.query(`
-                        INSERT INTO attendance (userId, clockIn, clockOut, date, day, attendanceStatus, workingHours)
-                        VALUES (?, NULL, NULL, CURDATE() - INTERVAL 1 DAY, DAYNAME(CURDATE() - INTERVAL 1 DAY), 'Absent', NULL)
+                    INSERT INTO attendance (userId, clockIn, clockOut, date, day, attendanceStatus, workingHours)
+                    VALUES (?, NULL, NULL, DATE_SUB(CURDATE(), INTERVAL 1 DAY), DAYNAME(DATE_SUB(CURDATE(), INTERVAL 1 DAY)), 'Absent', NULL)
                     `, [userId]);
                 }
             }
+
 
             // ✅ Clock In Logic
             const query = `

@@ -5,7 +5,7 @@ import bcrypt from "bcrypt";
 import fs from "fs";
 import path from "path";
 
-
+  
 
 export const login = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -56,6 +56,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
             status: 200,
             message: "Login Successful",
             token,
+            id: user.id,
             name: user.name,
             email: user.email,
             role: user.role,
@@ -541,17 +542,7 @@ export const markAttendance = async (req: Request, res: Response): Promise<void>
         const userId = req.params.id;
         console.log("User ID:", userId);
 
-        // ✅ Check if the user exists in the `login` table
-        const [user]: any = await pool.query(
-            "SELECT id FROM login WHERE id = ?",
-            [userId]
-        );
-
-        if (user.length === 0) {
-            res.status(404).json({ status: 404, message: "User not found" });
-            return;
-        }
-
+ 
         // ✅ Check if the user has already clocked in today
         const [existingAttendance]: any = await pool.query(
             "SELECT userId, clockIn, clockOut FROM attendance WHERE userId = ? AND date = CURDATE()",
@@ -569,17 +560,21 @@ export const markAttendance = async (req: Request, res: Response): Promise<void>
                 const lastDate = new Date(lastAttendance[0].date);
                 const currentDate = new Date();
 
-                // ✅ If user missed attendance for a day
-                const timeDiff = Math.abs(currentDate.getTime() - lastDate.getTime());
-                const diffDays = Math.ceil(timeDiff / (1000 * 3600 * 24));
+                const timeDiffMs = Math.abs(currentDate.getTime() - lastDate.getTime()); // Time difference in milliseconds
 
-                if (diffDays >= 1) {
+                const hours = Math.floor(timeDiffMs / (1000 * 60 * 60)); // Convert to hours
+                const minutes = Math.floor((timeDiffMs % (1000 * 60 * 60)) / (1000 * 60)); // Get remaining minutes
+
+                const diffTimeInHours = hours + minutes / 60; // Convert "HH:MM" to decimal (e.g., 1.5 hours)
+
+                if (diffTimeInHours >= 1) {
                     await pool.query(`
-                        INSERT INTO attendance (userId, clockIn, clockOut, date, day, attendanceStatus, workingHours)
-                        VALUES (?, NULL, NULL, CURDATE() - INTERVAL 1 DAY, DAYNAME(CURDATE() - INTERVAL 1 DAY), 'Absent', NULL)
+                    INSERT INTO attendance (userId, clockIn, clockOut, date, day, attendanceStatus, workingHours)
+                    VALUES (?, NULL, NULL, DATE_SUB(CURDATE(), INTERVAL 1 DAY), DAYNAME(DATE_SUB(CURDATE(), INTERVAL 1 DAY)), 'Absent', NULL)
                     `, [userId]);
                 }
             }
+
 
             // ✅ Clock In Logic
             const query = `
@@ -628,9 +623,121 @@ export const markAttendance = async (req: Request, res: Response): Promise<void>
 };
 
 
+// export const markAttendance = async (req: Request, res: Response): Promise<void> => {
+//     try {
+//         const userId = req.params.id;
+//         console.log("User ID:", userId);
+
+//         // ✅ Check if the user exists in the `login` table
+//         const [user]: any = await pool.query(
+//             "SELECT id FROM login WHERE id = ?",
+//             [userId]
+//         );
+
+//         if (!user || user.length === 0) {
+//              res.status(404).json({ status: 404, message: "User not found" });
+//         }
+
+//         // ✅ Check if the user has already clocked in today
+//         const [existingAttendance]: any = await pool.query(
+//             "SELECT userId, clockIn, clockOut FROM attendance WHERE userId = ? AND date = CURDATE()",
+//             [userId]
+//         );
+
+//         if (!existingAttendance || existingAttendance.length === 0) {
+//             // ✅ Marking User as Absent if they missed attendance
+//             const [lastAttendance]: any = await pool.query(
+//                 "SELECT date FROM attendance WHERE userId = ? ORDER BY date DESC LIMIT 1",
+//                 [userId]
+//             );
+
+//             if (lastAttendance.length > 0) {
+//                 const lastDate = new Date(lastAttendance[0].date);
+//                 const currentDate = new Date();
+
+//                 const timeDiffMs = Math.abs(currentDate.getTime() - lastDate.getTime()); // Time difference in milliseconds
+
+//                 const hours = Math.floor(timeDiffMs / (1000 * 60 * 60)); // Convert to hours
+//                 const minutes = Math.floor((timeDiffMs % (1000 * 60 * 60)) / (1000 * 60)); // Get remaining minutes
+
+//                 const diffTimeInHours = hours + minutes / 60; // Convert "HH:MM" to decimal (e.g., 1.5 hours)
+
+//                 console.log(`Time Difference: ${hours} hours and ${minutes} minutes (${diffTimeInHours} total hours)`);
+
+//                 // ✅ Ensure diffTime is checked numerically
+                // if (diffTimeInHours >= 1) {
+                //     await pool.query(`
+                //         INSERT INTO attendance (userId, clockIn, clockOut, date, day, attendanceStatus, workingHours)
+                //         VALUES (?, NULL, NULL, DATE_SUB(CURDATE(), INTERVAL 1 DAY), DAYNAME(DATE_SUB(CURDATE(), INTERVAL 1 DAY)), 'Absent', NULL)
+                //     `, [userId]);
+                // }
+//             }
+
+//             // ✅ Clock In Logic
+//             const query = `
+//                 INSERT INTO attendance (
+//                     userId, clockIn, clockOut, date, day, attendanceStatus, workingHours
+//                 ) VALUES (?, CURRENT_TIMESTAMP(), NULL, CURDATE(), DAYNAME(CURDATE()), 'Present', NULL)
+//             `;
+
+//             const [result]: any = await pool.query(query, [userId]);
+
+//              res.status(201).json({
+//                 message: "Clock-in recorded successfully",
+//                 attendanceId: result.insertId
+//             });
+//         } 
+        
+//         // ✅ Preventing `TypeError` - Check if `existingAttendance[0]` exists before accessing properties
+//         const attendanceRecord = existingAttendance[0] || {}; 
+//         if (!("clockOut" in attendanceRecord)) {
+//              res.status(400).json({
+//                 message: "Attendance record exists, but clockOut data is missing!"
+//             });
+//         }
+
+//         if (attendanceRecord.clockOut === null) {
+//             // ✅ Clock Out & Calculate Working Hours
+//             const query = `
+//                 UPDATE attendance 
+//                 SET clockOut = CURRENT_TIMESTAMP(), 
+//                     workingHours = TIMESTAMPDIFF(MINUTE, clockIn, CURRENT_TIMESTAMP()) / 60
+//                 WHERE userId = ? AND date = CURDATE()
+//             `;
+
+//             await pool.query(query, [userId]);
+
+//             const [attendance]: any = await pool.query(
+//                 "SELECT * FROM attendance WHERE userId = ? AND date = CURDATE()",
+//                 [userId]
+//             );
+
+//              res.status(200).json({
+//                 message: "Clock-out recorded successfully",
+//                 ...attendance[0]
+//             });
+
+//         } else {
+//              res.status(400).json({
+//                 message: "You have already marked attendance for today!"
+//             });
+//         }
+
+//     } catch (error) {
+//         console.error("❌ Error marking attendance:", error);
+//          res.status(500).json({ message: "Internal Server Error" });
+//     }
+// };
+
+
+
 
 
 //updating attendance
+
+
+
+
 export const updateAttendance = async (req: Request, res: Response): Promise<void> => {
     try {
         // Extract data from the request body

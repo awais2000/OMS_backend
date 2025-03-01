@@ -6,7 +6,7 @@ import fs from "fs";
 const uploadDir = "uploads/images/";
 if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
-}
+}     
 
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
@@ -18,7 +18,3 @@ const storage = multer.diskStorage({
 });
 
 export const upload = multer({ storage });
-
-
-
-
