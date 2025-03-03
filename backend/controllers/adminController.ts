@@ -448,14 +448,14 @@ export const deleteCustomer = async (req: Request, res: Response): Promise<void>
 // 🛠 Get Attendance Function
 export const getAttendance = async (req: Request, res: Response): Promise<void> => {
     try {
+        const id = req.params.id;
         const entry = parseInt(req.params.entry, 10);
         console.log(entry);
         const limit = !isNaN(entry) && entry > 0 ? entry : 10;
         
         // ✅ Fetch attendance records for the user
         const [attendance]: any = await pool.query(
-            "SELECT * FROM attendance where status= 'Y' LIMIT ? ", [limit]
-        );
+            "SELECT * FROM attendance where status= 'Y' and userId= ? LIMIT ? ", [id, limit]        );
 
         if (attendance.length === 0) {
             res.status(404).json({ status: 404, message: "No attendance records found" });
@@ -474,6 +474,14 @@ export const getAttendance = async (req: Request, res: Response): Promise<void> 
         res.status(500).json({ status: 500, message: "Internal Server Error" });
     }
 };
+
+
+
+// getTimings
+export const getTimings = async (req: Request, res: Response): Promise<void> => {
+   
+ }
+
 
 
 // The `addAttendance` function will handle adding attendance data for a user
@@ -536,13 +544,11 @@ export const addAttendance = async (req: Request, res: Response): Promise<void> 
 
 
 // markAttendance
-
 export const markAttendance = async (req: Request, res: Response): Promise<void> => {
     try {
         const userId = req.params.id;
         console.log("User ID:", userId);
 
- 
         // ✅ Check if the user has already clocked in today
         const [existingAttendance]: any = await pool.query(
             "SELECT userId, clockIn, clockOut FROM attendance WHERE userId = ? AND date = CURDATE()",
@@ -560,21 +566,24 @@ export const markAttendance = async (req: Request, res: Response): Promise<void>
                 const lastDate = new Date(lastAttendance[0].date);
                 const currentDate = new Date();
 
-                const timeDiffMs = Math.abs(currentDate.getTime() - lastDate.getTime()); // Time difference in milliseconds
+                // ✅ Get the exact difference in milliseconds
+                const timeDiffMs = Math.abs(currentDate.getTime() - lastDate.getTime());
 
-                const hours = Math.floor(timeDiffMs / (1000 * 60 * 60)); // Convert to hours
-                const minutes = Math.floor((timeDiffMs % (1000 * 60 * 60)) / (1000 * 60)); // Get remaining minutes
+                // ✅ Convert milliseconds to hours & minutes
+                const hours = Math.floor(timeDiffMs / (1000 * 60 * 60));
+                const minutes = Math.floor((timeDiffMs % (1000 * 60 * 60)) / (1000 * 60));
 
-                const diffTimeInHours = hours + minutes / 60; // Convert "HH:MM" to decimal (e.g., 1.5 hours)
+                // ✅ Ensure correct format as "HH:MM"
+                const workingHours = `${hours}:${minutes.toString().padStart(2, "0")}`;
 
-                if (diffTimeInHours >= 1) {
-                    await pool.query(`
+                console.log(`Time Difference: ${hours} hours and ${minutes} minutes (${workingHours})`);
+
+                // ✅ Insert attendance record even if minutes are less than 1 hour
+                await pool.query(`
                     INSERT INTO attendance (userId, clockIn, clockOut, date, day, attendanceStatus, workingHours)
-                    VALUES (?, NULL, NULL, DATE_SUB(CURDATE(), INTERVAL 1 DAY), DAYNAME(DATE_SUB(CURDATE(), INTERVAL 1 DAY)), 'Absent', NULL)
-                    `, [userId]);
-                }
+                    VALUES (?, NULL, NULL, DATE_SUB(CURDATE(), INTERVAL 1 DAY), DAYNAME(DATE_SUB(CURDATE(), INTERVAL 1 DAY)), 'Absent', ?)
+                `, [userId, workingHours]);
             }
-
 
             // ✅ Clock In Logic
             const query = `
@@ -585,149 +594,48 @@ export const markAttendance = async (req: Request, res: Response): Promise<void>
 
             const [result]: any = await pool.query(query, [userId]);
 
-            res.status(201).json({
+             res.status(201).json({
                 message: "Clock-in recorded successfully",
                 attendanceId: result.insertId
             });
-
         } else if (existingAttendance[0].clockOut === null) {
-            // ✅ Clock Out & Calculate Working Hours
-            const query = `
+            // ✅ Clock Out & Calculate Working Hours Correctly
+            const updateQuery = `
                 UPDATE attendance 
-                SET clockOut = CURRENT_TIMESTAMP(), workingHours = TIMESTAMPDIFF(HOUR, clockIn, CURRENT_TIMESTAMP())
+                SET clockOut = CURRENT_TIMESTAMP(), 
+                    workingHours = CONCAT(
+                        FLOOR(TIMESTAMPDIFF(MINUTE, clockIn, CURRENT_TIMESTAMP()) / 60), 
+                        ':', 
+                        LPAD(TIMESTAMPDIFF(MINUTE, clockIn, CURRENT_TIMESTAMP()) % 60, 2, '0')
+                    )
                 WHERE userId = ? AND date = CURDATE()
             `;
 
-            await pool.query(query, [userId]);
+            await pool.query(updateQuery, [userId]);
 
             const [attendance]: any = await pool.query(
                 "SELECT * FROM attendance WHERE userId = ? AND date = CURDATE()",
                 [userId]
             );
 
-            res.status(200).json({
+             res.status(200).json({
                 message: "Clock-out recorded successfully",
                 ...attendance[0]
             });
 
         } else {
-            res.status(400).json({
+             res.status(400).json({
                 message: "You have already marked attendance for today!"
             });
         }
 
     } catch (error) {
         console.error("❌ Error marking attendance:", error);
-        res.status(500).json({ message: "Internal Server Error" });
+         res.status(500).json({ message: "Internal Server Error" });
     }
 };
 
 
-// export const markAttendance = async (req: Request, res: Response): Promise<void> => {
-//     try {
-//         const userId = req.params.id;
-//         console.log("User ID:", userId);
-
-//         // ✅ Check if the user exists in the `login` table
-//         const [user]: any = await pool.query(
-//             "SELECT id FROM login WHERE id = ?",
-//             [userId]
-//         );
-
-//         if (!user || user.length === 0) {
-//              res.status(404).json({ status: 404, message: "User not found" });
-//         }
-
-//         // ✅ Check if the user has already clocked in today
-//         const [existingAttendance]: any = await pool.query(
-//             "SELECT userId, clockIn, clockOut FROM attendance WHERE userId = ? AND date = CURDATE()",
-//             [userId]
-//         );
-
-//         if (!existingAttendance || existingAttendance.length === 0) {
-//             // ✅ Marking User as Absent if they missed attendance
-//             const [lastAttendance]: any = await pool.query(
-//                 "SELECT date FROM attendance WHERE userId = ? ORDER BY date DESC LIMIT 1",
-//                 [userId]
-//             );
-
-//             if (lastAttendance.length > 0) {
-//                 const lastDate = new Date(lastAttendance[0].date);
-//                 const currentDate = new Date();
-
-//                 const timeDiffMs = Math.abs(currentDate.getTime() - lastDate.getTime()); // Time difference in milliseconds
-
-//                 const hours = Math.floor(timeDiffMs / (1000 * 60 * 60)); // Convert to hours
-//                 const minutes = Math.floor((timeDiffMs % (1000 * 60 * 60)) / (1000 * 60)); // Get remaining minutes
-
-//                 const diffTimeInHours = hours + minutes / 60; // Convert "HH:MM" to decimal (e.g., 1.5 hours)
-
-//                 console.log(`Time Difference: ${hours} hours and ${minutes} minutes (${diffTimeInHours} total hours)`);
-
-//                 // ✅ Ensure diffTime is checked numerically
-                // if (diffTimeInHours >= 1) {
-                //     await pool.query(`
-                //         INSERT INTO attendance (userId, clockIn, clockOut, date, day, attendanceStatus, workingHours)
-                //         VALUES (?, NULL, NULL, DATE_SUB(CURDATE(), INTERVAL 1 DAY), DAYNAME(DATE_SUB(CURDATE(), INTERVAL 1 DAY)), 'Absent', NULL)
-                //     `, [userId]);
-                // }
-//             }
-
-//             // ✅ Clock In Logic
-//             const query = `
-//                 INSERT INTO attendance (
-//                     userId, clockIn, clockOut, date, day, attendanceStatus, workingHours
-//                 ) VALUES (?, CURRENT_TIMESTAMP(), NULL, CURDATE(), DAYNAME(CURDATE()), 'Present', NULL)
-//             `;
-
-//             const [result]: any = await pool.query(query, [userId]);
-
-//              res.status(201).json({
-//                 message: "Clock-in recorded successfully",
-//                 attendanceId: result.insertId
-//             });
-//         } 
-        
-//         // ✅ Preventing `TypeError` - Check if `existingAttendance[0]` exists before accessing properties
-//         const attendanceRecord = existingAttendance[0] || {}; 
-//         if (!("clockOut" in attendanceRecord)) {
-//              res.status(400).json({
-//                 message: "Attendance record exists, but clockOut data is missing!"
-//             });
-//         }
-
-//         if (attendanceRecord.clockOut === null) {
-//             // ✅ Clock Out & Calculate Working Hours
-//             const query = `
-//                 UPDATE attendance 
-//                 SET clockOut = CURRENT_TIMESTAMP(), 
-//                     workingHours = TIMESTAMPDIFF(MINUTE, clockIn, CURRENT_TIMESTAMP()) / 60
-//                 WHERE userId = ? AND date = CURDATE()
-//             `;
-
-//             await pool.query(query, [userId]);
-
-//             const [attendance]: any = await pool.query(
-//                 "SELECT * FROM attendance WHERE userId = ? AND date = CURDATE()",
-//                 [userId]
-//             );
-
-//              res.status(200).json({
-//                 message: "Clock-out recorded successfully",
-//                 ...attendance[0]
-//             });
-
-//         } else {
-//              res.status(400).json({
-//                 message: "You have already marked attendance for today!"
-//             });
-//         }
-
-//     } catch (error) {
-//         console.error("❌ Error marking attendance:", error);
-//          res.status(500).json({ message: "Internal Server Error" });
-//     }
-// };
 
 
 
@@ -840,6 +748,32 @@ export const deleteAttendance = async (req: Request, res: Response): Promise<voi
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
+
+
+
+
+export const attendanceSummary = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const id = req.params.id;
+        const getWorkingDays = await pool.query(`select count(attendanceStatus) as Holidays from attendance where not attendanceStatus = ('Holiday')  and status = 'Y' and userId =?`, [id]  );
+        const getPresents = await pool.query(`select count(attendanceStatus) as Presents from attendance where attendanceStatus  = ('Present') and  status = 'Y' and userId = ?`,  [id]);
+        const getAbsents = await pool.query( `select count(attendanceStatus) as Absent from attendance where attendanceStatus  = ('Absent') and  status = 'Y' and userId = ?`, [id]);
+        const getLeaves = await pool.query(`select count(attendanceStatus) as Leaves from attendance where attendanceStatus  = ('Leave') and status = 'Y' and userId =?`, [id]);
+        
+        const workingDays = getWorkingDays;
+        console.log(workingDays);
+        res.status(200).send([
+            getWorkingDays[0],
+            getPresents[0],
+            getAbsents[0],
+            getLeaves[0]
+        ])
+    } catch (error) {
+        console.error("❌ Error fetching Feilds:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+}
+
 
 
 //Getting the Leave Requests:
