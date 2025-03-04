@@ -2148,3 +2148,45 @@ export const deletePayment = async (req: Request, res: Response): Promise<void> 
         res.status(500).json({ message: "Internal Server Error" });
     }  
 }
+
+
+
+
+// createInvoice//
+export const createInvoice = async (req: Request, res: Response): Promise<void> => {
+    try {
+        
+    } catch (error) {
+        
+    }
+}
+
+
+
+
+// addQuotationDetail
+
+export const addQuotationDetail = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const {descrpition, QTY, UnitPrice, subtotal } = req.body;
+
+        if(!descrpition || !QTY || !UnitPrice || !subtotal){
+            res.send({message: "provide all the fields!"})
+        }
+        
+        const query =   `insert into quotationDetail  (descrpition, QTY, UnitPrice, subtotal)
+        values (?, ?, ?, ?)`;
+
+        const [values]:any = [descrpition, QTY, UnitPrice, subtotal]
+
+        const [result]:any = await pool.query(query, values);
+
+        res.send(200).send(["Quotation Details Added successfully!",
+            ...result[0]
+        ]
+        )
+    } catch (error) {
+        console.error("error adding data!");
+        res.status(500).send("internal server  error!");
+    }
+}
