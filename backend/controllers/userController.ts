@@ -4,12 +4,9 @@ import pool from "../database/db";
 // 🛠 Get Attendance Function (Now Properly Checks User Existence)
 export const getAttendance = async (req: Request, res: Response) => {
     try {
-        let page = parseInt(req.query.page as string) || 1;
-        let limit = parseInt(req.query.limit as string) || 10;
-        let offset = (page - 1) * limit; // ✅ Calculate the offset
+        
 
-        console.log(`Fetching page ${page} with limit ${limit}`);
-        const userId= req.params.id; // ✅ Get user ID from URL
+       const userId= req.params.id; // ✅ Get user ID from URL
         console.log(userId);
         // ✅ Check if the user exists in the `login` table
         const [user]: any = await pool.query(
@@ -53,79 +50,118 @@ export const markAttendance = async (req: Request, res: Response): Promise<void>
         const userId = req.params.id;
         console.log("User ID:", userId);
 
- 
         // ✅ Check if the user has already clocked in today
         const [existingAttendance]: any = await pool.query(
             "SELECT userId, clockIn, clockOut FROM attendance WHERE userId = ? AND date = CURDATE()",
             [userId]
         );
 
+        // ✅ If user has NOT clocked in today, insert new clock-in record
         if (existingAttendance.length === 0) {
-            // ✅ Marking User as Absent if they missed attendance
-            const [lastAttendance]: any = await pool.query(
-                "SELECT date FROM attendance WHERE userId = ? ORDER BY date DESC LIMIT 1",
-                [userId]
-            );
-
-            if (lastAttendance.length > 0) {
-                const lastDate = new Date(lastAttendance[0].date);
-                const currentDate = new Date();
-
-                const timeDiffMs = Math.abs(currentDate.getTime() - lastDate.getTime()); // Time difference in milliseconds
-
-                const hours = Math.floor(timeDiffMs / (1000 * 60 * 60)); // Convert to hours
-                const minutes = Math.floor((timeDiffMs % (1000 * 60 * 60)) / (1000 * 60)); // Get remaining minutes
-
-                const diffTimeInHours = hours + minutes / 60; // Convert "HH:MM" to decimal (e.g., 1.5 hours)
-
-                if (diffTimeInHours >= 1) {
-                    await pool.query(`
-                    INSERT INTO attendance (userId, clockIn, clockOut, date, day, attendanceStatus, workingHours)
-                    VALUES (?, NULL, NULL, DATE_SUB(CURDATE(), INTERVAL 1 DAY), DAYNAME(DATE_SUB(CURDATE(), INTERVAL 1 DAY)), 'Absent', NULL)
-                    `, [userId]);
-                }
-            }
-
-
-            // ✅ Clock In Logic
             const query = `
                 INSERT INTO attendance (
                     userId, clockIn, clockOut, date, day, attendanceStatus, workingHours
                 ) VALUES (?, CURRENT_TIMESTAMP(), NULL, CURDATE(), DAYNAME(CURDATE()), 'Present', NULL)
             `;
-
-            const [result]: any = await pool.query(query, [userId]);
+            await pool.query(query, [userId]);
 
             res.status(201).json({
                 message: "Clock-in recorded successfully",
-                attendanceId: result.insertId
             });
-
-        } else if (existingAttendance[0].clockOut === null) {
-            // ✅ Clock Out & Calculate Working Hours
-            const query = `
-                UPDATE attendance 
-                SET clockOut = CURRENT_TIMESTAMP(), workingHours = TIMESTAMPDIFF(HOUR, clockIn, CURRENT_TIMESTAMP())
-                WHERE userId = ? AND date = CURDATE()
-            `;
-
-            await pool.query(query, [userId]);
-
-            const [attendance]: any = await pool.query(
-                "SELECT * FROM attendance WHERE userId = ? AND date = CURDATE()",
-                [userId]
-            );
-
-            res.status(200).json({
-                message: "Clock-out recorded successfully",
-                ...attendance[0]
-            });
-
-        } else {
-            res.status(400).json({
-                message: "You have already marked attendance for today!"
-            });
+            return; // Stop further execution to avoid multiple responses
         }
+
+        // ✅ Fetch clock-in details to check clock-in and clock-out values
+        const [checkAttendance]: any = await pool.query(
+            "SELECT clockIn, clockOut FROM attendance WHERE userId = ? AND date = CURDATE()",
+            [userId]
+        );
+
+        console.log("Fetched Attendance:", checkAttendance);
+
+        if (!checkAttendance[0] || !checkAttendance[0].clockIn) {
+            res.status(400).json({
+                message: "Cannot calculate working hours, clockIn time is missing."
+            });
+            return;
+        }
+
+        // ✅ If user has already clocked out, prevent duplicate clock-out
+        if (checkAttendance[0].clockOut !== null) {
+            res.status(400).json({
+                message: "You have already clocked out today!"
+            });
+            return;
+        }
+
+        // ✅ Now, update clockOut since user is actually clocking out
+        await pool.query(
+            `UPDATE attendance 
+             SET clockOut = CURRENT_TIMESTAMP()
+             WHERE userId = ? AND date = CURDATE()`,
+            [userId]
+        );
+
+        // ✅ Fetch updated clock-in & clock-out time to calculate working hours
+        const [updatedAttendance]: any = await pool.query(
+            "SELECT clockIn, clockOut FROM attendance WHERE userId = ? AND date = CURDATE()",
+            [userId]
+        );
+
+        console.log("Updated Attendance After Clock-Out:", updatedAttendance);
+
+        if (!updatedAttendance[0] || !updatedAttendance[0].clockOut) {
+            res.status(400).json({
+                message: "Clock-out time update failed."
+            });
+            return;
+        }
+
+        // ✅ Now, Calculate `workingHours` Correctly After `clockOut` Is Set
+        const [timeDiffResult]: any = await pool.query(
+            `SELECT 
+                LPAD(TIMESTAMPDIFF(HOUR, clockIn, clockOut), 2, '0') AS Hours,
+                LPAD(TIMESTAMPDIFF(MINUTE, clockIn, clockOut) % 60, 2, '0') AS Minutes
+            FROM attendance WHERE userId = ? AND date = CURDATE()`,
+            [userId]
+        );
+
+        console.log("Working Hours Calculation:", timeDiffResult);
+
+        const { Hours, Minutes } = timeDiffResult[0] || { Hours: "0", Minutes: "00" };
+
+// ✅ Format Hours & Minutes
+        let formattedWorkingHours = "";
+        if (Hours !== "00" && Hours !== "0") {
+            formattedWorkingHours += `${Hours} Hour${Hours !== "1" ? "s" : ""} `;
+        }
+        if (Minutes !== "00") {
+    formattedWorkingHours += `${Minutes} Minute${Minutes !== "1" ? "s" : ""}`;
+                }
+        if (!formattedWorkingHours) {
+    formattedWorkingHours = "0 Minutes"; // Default if both are 0
+}
+
+console.log(`Final Working Hours: ${formattedWorkingHours}`);
+
+// ✅ Finally, Update `workingHours` field
+    await pool.query(
+    `UPDATE attendance 
+     SET workingHours = ?
+     WHERE userId = ? AND date = CURDATE()`,
+    [formattedWorkingHours.trim(), userId] // Trim to remove extra spaces
+);
+
+        // ✅ Fetch final attendance record
+        const [finalAttendance]: any = await pool.query(
+            "SELECT * FROM attendance WHERE userId = ? AND date = CURDATE()",
+            [userId]
+        );
+
+        res.status(200).json({
+            message: "Clock-out recorded successfully",
+            ...finalAttendance[0]
+        });
 
     } catch (error) {
         console.error("❌ Error marking attendance:", error);
@@ -135,17 +171,10 @@ export const markAttendance = async (req: Request, res: Response): Promise<void>
 
 
 
+
 export const addLeave = async (req: Request, res: Response): Promise<void> => {
     try {
-        const user_id = (req as any).user.id; // ✅ Get user ID from authenticated token
-
-        // ✅ Get `page` and `limit` from query params (Default: page=1, limit=10)
-        let page = parseInt(req.query.page as string) || 1;
-        let limit = parseInt(req.query.limit as string) || 10;
-        let offset = (page - 1) * limit; // ✅ Calculate the offset
-
-        console.log(`Fetching page ${page} with limit ${limit}`);
-        // ✅ Get `userId` from authenticated user (via JWT token)
+        
         const userId = req.params.id;
 
         const { attendanceStatus, leaveReason } = req.body;

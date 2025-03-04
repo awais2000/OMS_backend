@@ -445,6 +445,35 @@ export const deleteCustomer = async (req: Request, res: Response): Promise<void>
 
 
 
+// getAllAttendance
+export const getAllAttendance = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const entry = parseInt(req.params.entry, 10);
+        console.log(entry);
+        const limit = !isNaN(entry) && entry > 0 ? entry : 10;
+
+        // ✅ Fetch attendance records for the user
+        const [attendance]: any = await pool.query(
+            "SELECT * FROM attendance where status= 'Y'  LIMIT ?", [limit] );
+
+        if (attendance.length === 0) {
+            res.status(404).json({ status: 404, message: "No attendance records found" });
+            return;
+        }
+
+        // ✅ Send attendance records
+        res.status(200).json([  "Attendance records fetched successfully",
+            ...attendance
+        ]);
+
+    } catch (error) {
+        console.error("❌ Error fetching attendance:", error);
+        res.status(500).json({ status: 500, message: "Internal Server Error" });
+    }
+};
+
+
+
 // 🛠 Get Attendance Function
 export const getAttendance = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -463,11 +492,8 @@ export const getAttendance = async (req: Request, res: Response): Promise<void> 
         }
 
         // ✅ Send attendance records
-        res.status(200).json({
-            status: 200,
-            message: "Attendance records fetched successfully",
-            ...attendance
-        });
+        res.status(200).json([ "Attendance records fetched successfully",
+            ...attendance]);
 
     } catch (error) {
         console.error("❌ Error fetching attendance:", error);
@@ -555,23 +581,22 @@ export const markAttendance = async (req: Request, res: Response): Promise<void>
             [userId]
         );
 
+        // ✅ If user has NOT clocked in today, insert new clock-in record
         if (existingAttendance.length === 0) {
-            // ✅ Clock In Logic
             const query = `
                 INSERT INTO attendance (
                     userId, clockIn, clockOut, date, day, attendanceStatus, workingHours
                 ) VALUES (?, CURRENT_TIMESTAMP(), NULL, CURDATE(), DAYNAME(CURDATE()), 'Present', NULL)
             `;
+            await pool.query(query, [userId]);
 
-            const [result]: any = await pool.query(query, [userId]);
-
-             res.status(201).json({
+            res.status(201).json({
                 message: "Clock-in recorded successfully",
-                attendanceId: result.insertId
             });
-        } 
-        
-        // ✅ Fetch clockIn & clockOut before updating working hours
+            return; // Stop further execution to avoid multiple responses
+        }
+
+        // ✅ Fetch clock-in details to check clock-in and clock-out values
         const [checkAttendance]: any = await pool.query(
             "SELECT clockIn, clockOut FROM attendance WHERE userId = ? AND date = CURDATE()",
             [userId]
@@ -580,65 +605,94 @@ export const markAttendance = async (req: Request, res: Response): Promise<void>
         console.log("Fetched Attendance:", checkAttendance);
 
         if (!checkAttendance[0] || !checkAttendance[0].clockIn) {
-             res.status(400).json({
+            res.status(400).json({
                 message: "Cannot calculate working hours, clockIn time is missing."
             });
+            return;
         }
 
-        if (checkAttendance[0].clockOut === null) {
-            // ✅ Test TIMESTAMPDIFF Before Updating
-            const [timeDiffResult]: any = await pool.query(
-                `SELECT 
-                    TIMESTAMPDIFF(HOUR, clockIn, CURRENT_TIMESTAMP()) AS Hours,
-                    TIMESTAMPDIFF(MINUTE, clockIn, CURRENT_TIMESTAMP()) % 60 AS Minutes
-                FROM attendance WHERE userId = ? AND date = CURDATE()`,
-                [userId]
-            );
-
-            console.log("Working Hours Calculation:", timeDiffResult);
-
-            const { Hours, Minutes } = timeDiffResult[0] || { Hours: 0, Minutes: 0 };
-            const formattedWorkingHours = `${Hours}:${Minutes.toString().padStart(2, "0")}`;
-
-            console.log(`Final Working Hours: ${formattedWorkingHours}`);
-
-            // ✅ Clock Out & Update Working Hours
-            const updateQuery = `
-                UPDATE attendance 
-                SET clockOut = CURRENT_TIMESTAMP(), 
-                    workingHours = ?
-                WHERE userId = ? AND date = CURDATE()
-            `;
-
-            await pool.query(updateQuery, [formattedWorkingHours, userId]);
-
-            const [attendance]: any = await pool.query(
-                "SELECT * FROM attendance WHERE userId = ? AND date = CURDATE()",
-                [userId]
-            );
-
-             res.status(200).json({
-                message: "Clock-out recorded successfully",
-                ...attendance[0]
+        // ✅ If user has already clocked out, prevent duplicate clock-out
+        if (checkAttendance[0].clockOut !== null) {
+            res.status(400).json({
+                message: "You have already clocked out today!"
             });
+            return;
         }
 
-         res.status(400).json({
-            message: "You have already marked attendance for today!"
+        // ✅ Now, update clockOut since user is actually clocking out
+        await pool.query(
+            `UPDATE attendance 
+             SET clockOut = CURRENT_TIMESTAMP()
+             WHERE userId = ? AND date = CURDATE()`,
+            [userId]
+        );
+
+        // ✅ Fetch updated clock-in & clock-out time to calculate working hours
+        const [updatedAttendance]: any = await pool.query(
+            "SELECT clockIn, clockOut FROM attendance WHERE userId = ? AND date = CURDATE()",
+            [userId]
+        );
+
+        console.log("Updated Attendance After Clock-Out:", updatedAttendance);
+
+        if (!updatedAttendance[0] || !updatedAttendance[0].clockOut) {
+            res.status(400).json({
+                message: "Clock-out time update failed."
+            });
+            return;
+        }
+
+        // ✅ Now, Calculate `workingHours` Correctly After `clockOut` Is Set
+        const [timeDiffResult]: any = await pool.query(
+            `SELECT 
+                LPAD(TIMESTAMPDIFF(HOUR, clockIn, clockOut), 2, '0') AS Hours,
+                LPAD(TIMESTAMPDIFF(MINUTE, clockIn, clockOut) % 60, 2, '0') AS Minutes
+            FROM attendance WHERE userId = ? AND date = CURDATE()`,
+            [userId]
+        );
+
+        console.log("Working Hours Calculation:", timeDiffResult);
+
+        const { Hours, Minutes } = timeDiffResult[0] || { Hours: "0", Minutes: "00" };
+
+// ✅ Format Hours & Minutes
+        let formattedWorkingHours = "";
+        if (Hours !== "00" && Hours !== "0") {
+            formattedWorkingHours += `${Hours} Hour${Hours !== "1" ? "s" : ""} `;
+        }
+        if (Minutes !== "00") {
+    formattedWorkingHours += `${Minutes} Minute${Minutes !== "1" ? "s" : ""}`;
+                }
+        if (!formattedWorkingHours) {
+    formattedWorkingHours = "0 Minutes"; // Default if both are 0
+}
+
+console.log(`Final Working Hours: ${formattedWorkingHours}`);
+
+// ✅ Finally, Update `workingHours` field
+    await pool.query(
+    `UPDATE attendance 
+     SET workingHours = ?
+     WHERE userId = ? AND date = CURDATE()`,
+    [formattedWorkingHours.trim(), userId] // Trim to remove extra spaces
+);
+
+        // ✅ Fetch final attendance record
+        const [finalAttendance]: any = await pool.query(
+            "SELECT * FROM attendance WHERE userId = ? AND date = CURDATE()",
+            [userId]
+        );
+
+        res.status(200).json({
+            message: "Clock-out recorded successfully",
+            ...finalAttendance[0]
         });
 
     } catch (error) {
         console.error("❌ Error marking attendance:", error);
-         res.status(500).json({ message: "Internal Server Error" });
+        res.status(500).json({ message: "Internal Server Error" });
     }
 };
-
-
-
-
-
-
-
 
 
 //updating attendance
@@ -755,24 +809,28 @@ export const deleteAttendance = async (req: Request, res: Response): Promise<voi
 export const attendanceSummary = async (req: Request, res: Response): Promise<void> => {
     try {
         const id = req.params.id;
-        const getWorkingDays = await pool.query(`select count(attendanceStatus) as Holidays from attendance where not attendanceStatus = ('Holiday')  and status = 'Y' and userId =?`, [id]  );
-        const getPresents = await pool.query(`select count(attendanceStatus) as Presents from attendance where attendanceStatus  = ('Present') and  status = 'Y' and userId = ?`,  [id]);
-        const getAbsents = await pool.query( `select count(attendanceStatus) as Absent from attendance where attendanceStatus  = ('Absent') and  status = 'Y' and userId = ?`, [id]);
-        const getLeaves = await pool.query(`select count(attendanceStatus) as Leaves from attendance where attendanceStatus  = ('Leave') and status = 'Y' and userId =?`, [id]);
-        
-        const workingDays = getWorkingDays;
-        console.log(workingDays);
-        res.status(200).send([
-            getWorkingDays[0],
-            getPresents[0],
-            getAbsents[0],
-            getLeaves[0]
-        ])
+
+        // ✅ Optimized single query to fetch all attendance counts
+        const [summary]: any = await pool.query(
+            `SELECT 
+                COUNT(CASE WHEN attendanceStatus != 'Holiday' THEN 1 END) AS WorkingDays,
+                COUNT(CASE WHEN attendanceStatus = 'Present' THEN 1 END) AS Presents,
+                COUNT(CASE WHEN attendanceStatus = 'Absent' THEN 1 END) AS Absents,
+                COUNT(CASE WHEN attendanceStatus = 'Leave' THEN 1 END) AS Leaves
+            FROM attendance
+            WHERE status = 'Y' AND userId = ?`, 
+            [id]
+        );
+
+        // ✅ Send response with the fetched summary
+        res.status(200).json(summary[0]);
+
     } catch (error) {
-        console.error("❌ Error fetching Feilds:", error);
+        console.error("❌ Error fetching attendance summary:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
-}
+};
+
 
 
 
