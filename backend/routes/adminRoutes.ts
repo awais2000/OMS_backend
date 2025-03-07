@@ -1,5 +1,5 @@
 import { Application } from "express";
-import { getAllUsers, login, addUser, changePassword, updateUser, deleteUser, getAllCustomer, addCustomerInfo, updateCustomer, deleteCustomer, getAttendance, addAttendance, updateAttendance, deleteAttendance, getUsersLeaves, authorizeLeaves, configHolidays, getHolidays, withdrawEmployee, createCatagory, addProject, alterCategory, deleteCategory, alterProjectInfo, deleteProject,  getProjects, assignProject, getAssignProject, alterAssignProject, deleteAssignment, createTodo, alterTodo, deleteTodo, getTodo, addProgress, alterProgress, deleteProgress, getProgress, addSales, alterSalesData, deleteSale, addPayment, getSales, alterPayments, deletePayment, getPayments, uploadedFile, getuploadfile, getCategory, markAttendance, getTimings, attendanceSummary, getAllAttendance, createInvoice, addQuotationDetail} from "../controllers/adminController";
+import { getAllUsers, login, addUser, changePassword, updateUser, deleteUser, getAllCustomer, addCustomerInfo, updateCustomer, deleteCustomer, getAttendance, addAttendance, updateAttendance, deleteAttendance, getUsersLeaves, authorizeLeaves, configHolidays, getHolidays, withdrawEmployee, createCatagory, addProject, alterCategory, deleteCategory, alterProjectInfo, deleteProject,  getProjects, assignProject, getAssignProject, alterAssignProject, deleteAssignment, createTodo, alterTodo, deleteTodo, getTodo, addProgress, alterProgress, deleteProgress, getProgress, addSales, alterSalesData, deleteSale, addPayment, getSales, alterPayments, deletePayment, getPayments, uploadedFile, getuploadfile, getCategory, markAttendance, getTimings, attendanceSummary, addQuotationDetail, addQuotation, getQuotations, updateQuotation, deleteQuotation, getExpenseCategory, createExpenseCatagory, alterExpenseCategory, deleteExpenseCategory, addExpense, updateExpense, deleteExpense, getAllAttendances} from "../controllers/adminController";
 import { authenticateToken, isAdmin } from "../middleware/middleware";
 import { upload } from "../middleware/uploadMiddleware"; 
 // import  path  from 'path';
@@ -44,12 +44,13 @@ export default (app: Application): void => {
 
 
 
-    //for attendance
-    app.get('/admin/getAllAttendance/:entry', getAllAttendance);
+    app.get("/admin/getAttendance/:id", authenticateToken, isAdmin, getAttendance);
+  // app.get('/admin/getAttendance', getAttendance);
 
 
-    // app.get('/admin/getAttendance/:entry', authenticateToken, isAdmin, getAttendance); 
-    app.get('/admin/getAttendance/:id/:entry', getAttendance);
+  // getAllAttendances
+  app.get("/admin/getAllAttendances", authenticateToken, isAdmin, getAllAttendances);
+
 
     app.get('/admin/getTimings',  getTimings);
 
@@ -173,17 +174,40 @@ export default (app: Application): void => {
     
 
 
-    app.post('/admin/createInvoice', createInvoice);
 
 
     app.post('/admin/addQuotationDetail', addQuotationDetail);
 
-    
 
+    app.post('/admin/addQuotation', addQuotation);
+
+    app.get('/admin/getQuotations', getQuotations);
+
+    app.put('/admin/updateQuotation/:id', updateQuotation);
+
+    app.patch('/admin/deleteQuotation/:id', deleteQuotation);
+
+
+
+    //expense management:
+    app.get('/admin/getExpenseCategory', getExpenseCategory);
+
+    app.post('/admin/createExpenseCatagory', createExpenseCatagory);
+
+    app.put('/admin/alterExpenseCategory/:id', alterExpenseCategory);
+
+    app.patch('/admin/deleteExpenseCategory/:id', deleteExpenseCategory);
+
+
+    app.post('/admin/addExpense', addExpense);
+
+
+    app.put('/admin/updateExpense/:id', updateExpense);
+
+    app.patch('/admin/deleteExpense/:id', deleteExpense);
+
+    
     app.get('/getuploadfile', getuploadfile);
-    app.post('/uploadedFile', upload.single("image"), uploadedFile);
-    
-    
-    
+    app.post('/uploadedFile', upload.single("image"), uploadedFile);  
 };
 

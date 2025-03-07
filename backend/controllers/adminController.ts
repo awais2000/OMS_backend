@@ -446,61 +446,88 @@ export const deleteCustomer = async (req: Request, res: Response): Promise<void>
 
 
 // getAllAttendance
-export const getAllAttendance = async (req: Request, res: Response): Promise<void> => {
+export const getAttendance = async (
+    req: Request,
+    res: Response
+  ): Promise<void> => {
     try {
-        const entry = parseInt(req.params.entry, 10);
-        console.log(entry);
-        const limit = !isNaN(entry) && entry > 0 ? entry : 10;
-
-        // ✅ Fetch attendance records for the user
-        const [attendance]: any = await pool.query(
-            "SELECT * FROM attendance where status= 'Y'  LIMIT ?", [limit] );
-
-        if (attendance.length === 0) {
-            res.status(404).json({ status: 404, message: "No attendance records found" });
-            return;
-        }
-
-        // ✅ Send attendance records
-        res.status(200).json([  "Attendance records fetched successfully",
-            ...attendance
-        ]);
-
+      const id = req.params.id;
+      // ✅ Fetch the latest attendance record for each user
+      const [attendance]: any = await pool.query(
+        `SELECT 
+                  userId, 
+                  CONVERT_TZ(date, '+00:00', @@session.time_zone) AS date, 
+                  clockIn, 
+                  clockOut, 
+                  day, 
+                  status, 
+                  attendanceStatus, 
+                  leaveReason, 
+                  leaveApprovalStatus, 
+                  workingHours
+               FROM attendance 
+               WHERE status = 'Y' AND userId = ?
+               ORDER BY date DESC`, [id]
+      );
+  
+      if (attendance.length === 0) {
+        res
+          .status(404)
+          .json({ status: 404, message: "No attendance records found" });
+        return;
+      }
+  
+      // ✅ Send only the latest attendance records per user
+      res.status(200).json({
+        message: "Latest attendance records fetched successfully",
+        ...attendance[0],
+      });
     } catch (error) {
-        console.error("❌ Error fetching attendance:", error);
-        res.status(500).json({ status: 500, message: "Internal Server Error" });
+      console.error("❌ Error fetching attendance:", error);
+      res.status(500).json({ status: 500, message: "Internal Server Error" });
     }
-};
-
-
-
-// 🛠 Get Attendance Function
-export const getAttendance = async (req: Request, res: Response): Promise<void> => {
+  };
+  
+  export const getAllAttendances = async (
+    req: Request,
+    res: Response
+  ): Promise<void> => {
     try {
-        const id = req.params.id;
-        const entry = parseInt(req.params.entry, 10);
-        console.log(entry);
-        const limit = !isNaN(entry) && entry > 0 ? entry : 10;
-        
-        // ✅ Fetch attendance records for the user
-        const [attendance]: any = await pool.query(
-            "SELECT * FROM attendance where status= 'Y' and userId= ? LIMIT ? ", [id, limit]        );
-
-        if (attendance.length === 0) {
-            res.status(404).json({ status: 404, message: "No attendance records found" });
-            return;
-        }
-
-        // ✅ Send attendance records
-        res.status(200).json([ "Attendance records fetched successfully",
-            ...attendance]);
-
+      // ✅ Fetch the latest attendance record for each user
+      const [attendance]: any = await pool.query(
+        `SELECT 
+                  userId, 
+                  CONVERT_TZ(date, '+00:00', @@session.time_zone) AS date, 
+                  clockIn, 
+                  clockOut, 
+                  day, 
+                  status, 
+                  attendanceStatus, 
+                  leaveReason, 
+                  leaveApprovalStatus, 
+                  workingHours
+               FROM attendance 
+               WHERE status = 'Y' 
+               ORDER BY date DESC`
+      );
+  
+      if (attendance.length === 0) {
+        res
+          .status(404)
+          .json({ status: 404, message: "No attendance records found" });
+        return;
+      }
+  
+      // ✅ Send only the latest attendance records per user
+      res.status(200).json([
+       "Latest attendance records fetched successfully",
+        ...attendance,
+      ]);
     } catch (error) {
-        console.error("❌ Error fetching attendance:", error);
-        res.status(500).json({ status: 500, message: "Internal Server Error" });
+      console.error("❌ Error fetching attendance:", error);
+      res.status(500).json({ status: 500, message: "Internal Server Error" });
     }
-};
-
+  };
 
 
 // getTimings
@@ -1084,7 +1111,6 @@ export const createCatagory = async (req: Request, res: Response): Promise<void>
     }
     
 }
-
 
 
 
@@ -2152,41 +2178,490 @@ export const deletePayment = async (req: Request, res: Response): Promise<void> 
 
 
 
-// createInvoice//
-export const createInvoice = async (req: Request, res: Response): Promise<void> => {
+
+export const addQuotationDetail = async (req: Request, res: Response): Promise<void> => {
     try {
-        
+        const { description, QTY, UnitPrice } = req.body;
+
+        if (!description || !QTY || !UnitPrice) {
+            res.status(400).json({ message: "Provide all the fields!" });
+            return;
+        }
+
+        // ✅ Bypass TypeScript's strict session type checking
+        const sessionData: any = req.session;
+
+        if (!sessionData.cart) {
+            sessionData.cart = [];
+        }
+
+        sessionData.cart.push({ description, QTY, UnitPrice });
+
+        res.status(200).json({ message: "Product added to cart!", cart: sessionData.cart });
     } catch (error) {
-        
+        console.error("❌ Error adding to cart:", error);
+        res.status(500).json({ message: "Internal Server Error!" });
+    }
+};
+
+
+
+export const addQuotation = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { customerName, date, taxRate, shippingHandling } = req.body;
+        const sessionData: any = req.session;
+
+        if (!sessionData.cart || sessionData.cart.length === 0) {
+            res.status(400).json({ message: "Cart is empty! Add products first." });
+            return;
+        }
+
+        // ✅ Step 1: Fetch Latest `invoiceno` from `invoiceno` Table
+        const [latestInvoice]: any = await pool.query("SELECT id FROM invoiceno ORDER BY id DESC LIMIT 1");
+        let invoiceno = latestInvoice.length > 0 ? latestInvoice[0].id : 1; // Default to 1 if no records exist
+
+        // ✅ Step 2: Prepare Data for `quotationdetail`
+        const values: any[] = [];
+        let subTotal = 0;
+
+        for (let item of sessionData.cart) {
+            const itemSubTotal = item.QTY * item.UnitPrice;
+            subTotal += itemSubTotal; // Calculate subTotal
+            values.push([invoiceno, item.description, item.QTY, item.UnitPrice, itemSubTotal]);
+        }
+
+        // ✅ Step 3: Insert `quotationdetail` Records
+        await pool.query(
+            `INSERT INTO quotationdetail (invoiceno, description, QTY, UnitPrice, subtotal) VALUES ?`,
+            [values]
+        );
+        const [customer]:any = await pool.query(`select id from customers  where customerName = ?`, [customerName])
+        const customerId = customer[0].id;
+
+        // ✅ Step 4: Calculate Totals
+        const totalTax = (subTotal * taxRate) / 100;
+        const totalBill = subTotal + totalTax + shippingHandling;
+
+        // ✅ Step 5: Insert into `quotation` Table
+        await pool.query(
+            `INSERT INTO quotation (customerId, date, subTotal, taxRate, totalTax, shippingHandling, totalBill, invoiceno)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [customerId, date, subTotal, taxRate, totalTax, shippingHandling, totalBill, invoiceno]
+        );
+
+        // ✅ Step 6: Increment `invoiceno` Table for Future Quotations
+        await pool.query("INSERT INTO invoiceno VALUES ()"); // ✅ Correct way to insert new invoiceno
+
+        const getSavedData = await pool.query(`select q.customerId, c.customerName, c.customerAddress, c.customerContact, q.date, q.subTotal, q.taxRate, q.shippingHandling, q.totalBill, q.invoiceno, i.quotationNo
+            from quotation q 
+            join customers c on
+            q.customerId = c.id
+            join invoiceno i
+            on   i.id = q.invoiceno
+            where quotationStatus = 'Y'`);
+
+        // ✅ Clear session cart after saving
+        sessionData.cart = [];
+
+        res.status(200).json({
+            message: "Quotation finalized successfully!",
+            ...getSavedData[0] 
+        });
+
+    } catch (error) {
+        console.error("❌ Error finalizing quotation:", error);
+        res.status(500).json({ message: "Internal Server Error!" });
+    }
+};
+
+
+
+export const getQuotations = async (req: Request, res: Response): Promise<void> => {
+    try {
+
+        const entry = parseInt(req.params.entry, 10);
+        console.log(entry);
+        const limit = !isNaN(entry) && entry > 0 ? entry : 10;
+
+        const [result]:any = await pool.query(`select q.customerId, c.customerName, c.customerAddress, c.customerContact, q.date, q.subTotal, q.taxRate, q.shippingHandling, q.totalBill, q.invoiceno, i.quotationNo
+            from quotation q 
+            join customers c on
+            q.customerId = c.id
+            join invoiceno i
+            on   i.id = q.invoiceno
+            where quotationStatus = 'Y' LIMIT ?`,  [limit]);
+
+        if(result.lenght ===0){
+            res.send({message: "no quotation found!"})
+        }
+
+        res.status(200).send([" Quotations Sucuessfully fetched!",
+            ...result
+        ])
+    } catch (error) {
+        console.error({message:"error fetching quotations: "}, error)
+        res.status(500).send({message:"Internal Server Error!"})
+    }
+};
+
+
+export const updateQuotation = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { id } = req.params; // InvoiceNo from URL params
+        const invoiceNo = id;
+        console.log("Updating Quotation for InvoiceNo:", invoiceNo);
+
+        const { customerName, date, taxRate, shippingHandling, description, QTY, UnitPrice } = req.body;
+
+        // ✅ Step 1: Ensure `invoiceNo` exists
+        const [existingInvoice]: any = await pool.query("SELECT * FROM invoiceno WHERE id = ?", [invoiceNo]);
+        if (existingInvoice.length === 0) {
+            res.status(404).json({ message: "Invoice not found!" });
+            return;
+        }
+
+        // ✅ Step 2: Fetch `customerId` using `customerName`
+        const [customer]: any = await pool.query("SELECT id FROM customers WHERE customerName = ?", [customerName]);
+        if (customer.length === 0) {
+            res.status(404).json({ message: "Customer not found!" });
+            return;
+        }
+        const customerId = customer[0].id;
+
+        // ✅ Step 3: Delete Existing `quotationDetail` Entries for This Invoice
+        await pool.query("DELETE FROM quotationDetail WHERE invoiceNo = ?", [invoiceNo]);
+
+        // ✅ Step 4: Insert Updated `quotationDetail` Records
+        const subtotal = QTY * UnitPrice; // ✅ Calculate subtotal
+        await pool.query(
+            `INSERT INTO quotationDetail (invoiceNo, description, QTY, UnitPrice, subtotal) VALUES (?, ?, ?, ?, ?)`,
+            [invoiceNo, description, QTY, UnitPrice, subtotal]
+        );
+
+        // ✅ Step 5: Calculate `subTotal`, `totalTax`, and `totalBill`
+        const totalTax = (subtotal * taxRate) / 100;
+        const totalBill = subtotal + totalTax + shippingHandling;
+
+        // ✅ Step 6: Update `quotation` Table
+        await pool.query(
+            `UPDATE quotation 
+            SET customerId = ?, date = ?, subTotal = ?, taxRate = ?, totalTax = ?, shippingHandling = ?, totalBill = ?
+            WHERE invoiceNo = ?`,
+            [customerId, date, subtotal, taxRate, totalTax, shippingHandling, totalBill, invoiceNo]
+        );
+
+        // ✅ Fetch Updated Data
+        const [updatedData]: any = await pool.query(`
+            SELECT q.customerId, c.customerName, c.customerAddress, c.customerContact, 
+                   q.date, q.subTotal, q.taxRate, q.shippingHandling, q.totalBill, 
+                   q.invoiceNo, i.quotationNo
+            FROM quotation q 
+            JOIN customers c ON q.customerId = c.id
+            JOIN invoiceno i ON i.id = q.invoiceNo
+            WHERE q.invoiceNo = ?`, [invoiceNo]);
+
+        res.status(200).json({
+            message: "Quotation updated successfully!",
+            ...updatedData[0]
+        });
+
+    } catch (error) {
+        console.error("❌ Error updating quotation:", error);
+        res.status(500).json({ message: "Internal Server Error!" });
+    }
+};
+
+
+
+// deleteQuotation
+export const deleteQuotation = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const id = req.params.id;
+
+        // ✅ Check if the quotation exists
+        const [existingQuotation]: any = await pool.query(`SELECT * FROM quotation WHERE id = ?`, [id]);
+        if (existingQuotation.length === 0) {
+            res.status(404).json({ message: "No quotation found!" });
+            return;
+        }
+
+        // ✅ Soft delete: Update `quotationDetailStatus` & `status` to 'N'
+        const [query]: any = await pool.query(
+            `UPDATE quotationdetail SET quotationDetailStatus = 'N' WHERE id = ?`, 
+            [id]
+        );
+
+        const [query2]: any = await pool.query(
+            `UPDATE quotation SET quotationStatus = 'N' WHERE id = ?`, 
+            [id]
+        );
+
+        // ✅ Check if any row was affected
+        if (query.affectedRows === 0 && query2.affectedRows === 0) {
+            res.status(404).json({ message: "Quotation not found or already deleted!" });
+            return;
+        }
+
+        res.status(200).json({
+            message: "Deleted quotation successfully!",
+            quotationDetailUpdate: query.affectedRows,
+            quotationUpdate: query2.affectedRows
+        });
+
+    } catch (error) {
+        console.error("❌ Error deleting quotation:", error);
+        res.status(500).json({ message: "Internal Server Error!" });
+    }
+};
+
+
+
+
+export const getExpenseCategory = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const query =   `select * from expenseCategory where categoryStatus = 'Y' `;
+        const [result]: any = await pool.query(query);
+        res.status(200).send({messsage:"categories Fetched Successfully!",
+            ...result
+        }
+        )
+    } catch (error) {
+        console.error("❌ Error fetching categories:", error);
+        res.status(500).json({ message: "Internal Server Error" });
     }
 }
 
 
 
 
-// addQuotationDetail
-
-export const addQuotationDetail = async (req: Request, res: Response): Promise<void> => {
+export const createExpenseCatagory = async (req: Request, res: Response): Promise<void> => {
     try {
-        const {descrpition, QTY, UnitPrice, subtotal } = req.body;
+        const {categoryName}  = req.body;
 
-        if(!descrpition || !QTY || !UnitPrice || !subtotal){
-            res.send({message: "provide all the fields!"})
+        const query  = `insert into expenseCategory (categoryName) values (?)`;
+
+        const values  = [categoryName]; 
+
+        const [checkCategory]:any  = await pool.query(`select * from categories where LOWER(categoryName)= LOWER(?)`,
+            [categoryName]
+        );
+
+
+        if(checkCategory.lenght>0){
+            res.status(400).send({message: "Category already exsits!"});
+            return;
         }
-        
-        const query =   `insert into quotationDetail  (descrpition, QTY, UnitPrice, subtotal)
-        values (?, ?, ?, ?)`;
 
-        const [values]:any = [descrpition, QTY, UnitPrice, subtotal]
+    const [categoryDate]: any = await pool.query(query, values);    
+    
+    const [displayCategory]: any = await pool.query(`select * from expenseCategory`);
 
-        const [result]:any = await pool.query(query, values);
-
-        res.send(200).send(["Quotation Details Added successfully!",
-            ...result[0]
-        ]
-        )
+    res.status(200).send({message: "category saved successfully!",
+        ...displayCategory[0]
+    })
     } catch (error) {
-        console.error("error adding data!");
-        res.status(500).send("internal server  error!");
+        console.error("❌ Error Adding expenseCategory:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+    
+}
+
+
+
+
+export const alterExpenseCategory = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const id = req.params.id;
+        const { categoryName } = req.body;
+
+        // ✅ Ensure required fields are provided
+        if (!categoryName) {
+            res.status(400).json({ message: "Please provide the category name!" });
+            return;
+        }
+
+        // ✅ Check if category exists
+        const [existingCategory]: any = await pool.query(
+            "SELECT * FROM expenseCategory WHERE id = ?",
+            [id]
+        );
+
+        if (existingCategory.length === 0) {
+            res.status(404).json({ message: "expenseCategory not found!" });
+            return;
+        }
+
+        // ✅ Update category in the database
+        const updateQuery = `UPDATE expenseCategory SET categoryName = ? WHERE id = ?`;
+        const values = [categoryName, id];
+
+        await pool.query(updateQuery, values);
+
+        // ✅ Fetch updated category data
+        const [updatedCategory]: any = await pool.query(
+            "SELECT * FROM expenseCategory WHERE id = ?",
+            [id]
+        );
+
+        // ✅ Send success response
+        res.status(200).json({
+            message: "Category updated successfully!",
+            ...updatedCategory[0]
+        });
+
+    } catch (error) {
+        console.error("❌ Error updating category:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+
+
+
+
+export const deleteExpenseCategory = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const id = req.params.id;
+
+        // ✅ Check if category exists and is active
+        const [existingCategory]: any = await pool.query(
+            "SELECT * FROM expenseCategory WHERE id = ? AND categoryStatus = 'Y'",
+            [id]
+        );
+
+        if (existingCategory.length === 0) {
+            res.status(404).json({ message: "Category not found or already disabled!" });
+            return;
+        }
+
+
+        // ✅ Update `categoryStatus` from 'Y' to 'N' (Soft Delete)
+        const updateQuery = `UPDATE expenseCategory SET categoryStatus = 'N' WHERE id = ?`;
+        await pool.query(updateQuery, [id]);
+
+        // ✅ Send success response
+        res.status(200).json({
+            message: "Category successfully disabled (soft deleted)!"
+        });
+
+    } catch (error) {
+        console.error("❌ Error disabling category:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+
+
+
+
+
+// addExpense
+export const addExpense = async (req: Request, res: Response): Promise<void> => {
+    try {
+    const {expenseName, expenseCategoryName, addedBy, date } = req.body;
+
+    const [category]:any = await pool.query(`select id from expenseCategory where CategoryName = ?`, expenseCategoryName)
+    
+    if(!category){
+        res.send({message: "no category found!"})
+    }
+
+     const expenseCategoryId = category[0].id
+     
+     const query = `insert into expenses (expenseName, expenseCategoryId, addedBy, date )
+     values (?, ?, ?, ?)`;
+
+    const values  =[expenseName, expenseCategoryId, addedBy, date];
+
+    const [results]: any = await pool.query( query, values);
+
+    res.status(200).send({message: "Expense Added Successfully!"})
+
+    } catch (error) {
+        console.error("❌ Error adding expense:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+}
+
+
+
+
+export const updateExpense = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const id = req.params.id; // Get Expense ID from URL params
+        const { expenseName, expenseCategoryName, addedBy, date } = req.body;
+
+        // ✅ Ensure the expense exists before updating
+        const [existingExpense]: any = await pool.query(
+            "SELECT * FROM expenses WHERE id = ?", 
+            [id]
+        );
+        if (existingExpense.length === 0) {
+            res.status(404).json({ message: "Expense not found!" });
+            return;
+        }
+
+        // ✅ Fetch `expenseCategoryId` from `expenseCategory` table
+        const [category]: any = await pool.query(
+            "SELECT id FROM expenseCategory WHERE CategoryName = ?", 
+            [expenseCategoryName]
+        );
+        if (category.length === 0) {
+            res.status(404).json({ message: "Expense category not found!" });
+            return;
+        }
+        const expenseCategoryId = category[0].id;
+
+        // ✅ Update the expense
+        const updateQuery = `
+            UPDATE expenses 
+            SET expenseName = ?, expenseCategoryId = ?, addedBy = ?, date = ? 
+            WHERE id = ?
+        `;
+        const values = [expenseName, expenseCategoryId, addedBy, date, id];
+
+        const [result]:any = await pool.query(updateQuery, values);
+
+        res.status(200).json({
+            message: "Expense updated successfully!",
+            ...result[0]
+          });
+
+    } catch (error) {
+        console.error("❌ Error updating expense:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+
+// deleteExpense
+export const deleteExpense = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const id = req.params.id;
+
+        // ✅ Check if category exists and is active
+        const [existingCategory]: any = await pool.query(
+            "SELECT * FROM expenses WHERE id = ? AND expenseStatus = 'Y'",
+            [id]
+        );
+
+        if (existingCategory.length === 0) {
+            res.status(404).json({ message: "Category not found or already disabled!" });
+            return;
+        }
+
+
+        // ✅ Update `categoryStatus` from 'Y' to 'N' (Soft Delete)
+        const updateQuery = `UPDATE expenses SET expenseStatus = 'N' WHERE id = ?`;
+        await pool.query(updateQuery, [id]);
+
+        // ✅ Send success response
+        res.status(200).json({
+            message: "Category successfully disabled (soft deleted)!"
+        });
+
+    } catch (error) {
+        console.error("❌ Error disabling category:", error);
+        res.status(500).json({ message: "Internal Server Error" });
     }
 }
