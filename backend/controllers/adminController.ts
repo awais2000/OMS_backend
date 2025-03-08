@@ -730,51 +730,70 @@ console.log(`Final Working Hours: ${formattedWorkingHours}`);
 export const updateAttendance = async (req: Request, res: Response): Promise<void> => {
     try {
         // Extract data from the request body
-        const {
-            date,
-            clockIn,
-            clockOut,
-            attendanceStatus,
-        } = req.body;
+        const { date, clockIn, clockOut, attendanceStatus } = req.body;
 
-        // Extract the attendance ID from the URL parameters
-        const userId = req.params.id;  // Assumes the ID is passed as a URL parameter
+        // Extract the user ID from the URL parameters
+        const userId = req.params.id;
 
-        // SQL query to update attendance data for the given ID
+        // ✅ **Calculate working hours if clockIn & clockOut exist**
+        let workingHours = "0 Minutes"; // Default value
+
+        const [timeDiffResult]: any = await pool.query(
+            `SELECT 
+                LPAD(TIMESTAMPDIFF(HOUR, clockIn, clockOut), 2, '0') AS Hours,
+                LPAD(TIMESTAMPDIFF(MINUTE, clockIn, clockOut) % 60, 2, '0') AS Minutes
+            FROM attendance WHERE id = ? `,
+            [userId]
+        );
+
+        const { Hours, Minutes } = timeDiffResult[0] || { Hours: 0, Minutes: 0 };
+
+        if (Hours > 0) {
+            workingHours = `${Hours} Hour${Hours !== 1 ? "s" : ""} `;
+        }
+        if (Minutes > 0) {
+            workingHours += `${Minutes} Minute${Minutes !== 1 ? "s" : ""}`;
+        }
+
+        console.log(`🕒 Updated Working Hours: ${workingHours}`);
+
+        // ✅ **Update Attendance with Working Hours**
         const query = `
             UPDATE attendance
             SET
                 date = ?,
                 clockIn = ?,
                 clockOut = ?,
-                attendanceStatus = ?
-            WHERE userId = ?
+                attendanceStatus = ?,
+                workingHours = ?
+            WHERE id = ?
         `;
 
-        // Execute the query with the values
+        // Execute the update query
         const [result]: any = await pool.query(query, [
-
             date,
             clockIn,
             clockOut,
             attendanceStatus,
+            workingHours,
             userId
         ]);
 
+        if (result.affectedRows === 0) {
+            res.status(404).json({ message: "Attendance record not found" });
+            return; // Ensure function exits
+        }
+
+        // Fetch updated attendance record
         const [attendance]: any = await pool.query(
-            "SELECT * FROM attendance WHERE userId = ?",
+            "SELECT * FROM attendance WHERE id = ?",
             [userId]
         );
 
-        // Check if the record was updated
-        if (result.affectedRows > 0) {
-            res.json({ message: "Attendance updated successfully",
-                ...attendance[0]
-             })
-
-        } else {
-            res.status(404).json({ message: "Attendance record not found" });
-        }
+        res.json({
+            message: "Attendance updated successfully",
+            ...attendance[0],
+        });
 
     } catch (error) {
         console.error("❌ Error updating attendance:", error);
