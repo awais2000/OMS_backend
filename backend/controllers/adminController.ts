@@ -734,10 +734,7 @@ export const updateAttendance = async (req: Request, res: Response): Promise<voi
             date,
             clockIn,
             clockOut,
-            day,
-            status,
             attendanceStatus,
-            leaveReason
         } = req.body;
 
         // Extract the attendance ID from the URL parameters
@@ -750,10 +747,7 @@ export const updateAttendance = async (req: Request, res: Response): Promise<voi
                 date = ?,
                 clockIn = ?,
                 clockOut = ?,
-                day = ?,
-                status = ?,
-                attendanceStatus = ?,
-                leaveReason = ?
+                attendanceStatus = ?
             WHERE userId = ?
         `;
 
@@ -763,10 +757,7 @@ export const updateAttendance = async (req: Request, res: Response): Promise<voi
             date,
             clockIn,
             clockOut,
-            day,
-            status,
             attendanceStatus,
-            leaveReason,
             userId
         ]);
 
@@ -808,7 +799,7 @@ export const deleteAttendance = async (req: Request, res: Response): Promise<voi
                 day = NULL,
                 attendanceStatus = NULL,
                 leaveReason = NULL
-            WHERE id = ?
+            WHERE userId = ?
         `;
 
         // Execute the query

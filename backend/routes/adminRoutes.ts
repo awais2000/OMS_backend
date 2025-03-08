@@ -59,8 +59,8 @@ export default (app: Application): void => {
     // app.post('/admin/addAttendance', authenticateToken, isAdmin, addAttendance);
     app.post('/admin/addAttendance', addAttendance);
 
-    app.put('/admin/updateAttendance/:id', authenticateToken, isAdmin, updateAttendance);
-    // app.put('/admin/updateAttendance/:id', updateAttendance);
+    // app.put('/admin/updateAttendance/:id', authenticateToken, isAdmin, updateAttendance);
+    app.put('/admin/updateAttendance/:id', updateAttendance);
 
     app.patch('/admin/deleteAttendance/:id', authenticateToken, isAdmin, deleteAttendance);
     // app.patch('/admin/deleteAttendance/:id', deleteAttendance);
