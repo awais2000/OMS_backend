@@ -95,6 +95,56 @@ export const getAllUsers = async (req: Request, res: Response): Promise<void> =>
 
 
 
+export const forgetPassword = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const  id  = req.params; // Corrected destructuring
+        const { password, newPassword } = req.body;
+
+        if (!password || !newPassword) {
+            res.status(400).json({ status: 400, message: "Please enter both current and new password!" });
+            return;
+        }
+
+        // Fetch the stored password from the database
+        const [rows]: any = await pool.query(`SELECT password FROM login WHERE id = ?`, [id]);
+
+        if (rows.length === 0) {
+            res.status(404).json({ status: 404, message: "User not found" });
+            return;
+        }
+
+        const storedPassword = rows[0].password;
+        const isMatch = await bcrypt.compare(password, storedPassword);
+
+        if (!isMatch) {
+            res.status(400).json({ status: 400, message: "Invalid Password" });
+            return;
+        }
+
+        // Hash the new password
+        const hashNewPassword = await bcrypt.hash(newPassword, 10);
+
+        // Update password in the database
+        const [updateResult]: any = await pool.query(
+            `UPDATE login SET password = ? WHERE id = ?`,
+            [hashNewPassword, id]
+        );
+
+        if (updateResult.affectedRows === 0) {
+            res.status(500).json({ status: 500, message: "Password update failed" });
+            return;
+        }
+
+        res.status(200).json({ status: 200, message: "Password changed successfully!" });
+    } catch (error) {
+        console.error("❌ Error Changing Password:", error);
+        res.status(500).json({ status: 500, message: "Internal Server Error" });
+    }
+};
+
+
+
+
 export const changePassword = async (req: Request, res: Response): Promise<void> => {
     try {
         const { id } = req.params; // Get user ID from URL params
@@ -445,6 +495,7 @@ export const deleteCustomer = async (req: Request, res: Response): Promise<void>
 
 
 
+
 // getAllAttendance
 export const getAttendance = async (
     req: Request,
@@ -505,7 +556,8 @@ export const getAttendance = async (
                   attendanceStatus, 
                   leaveReason, 
                   leaveApprovalStatus, 
-                  workingHours
+                  workingHours,
+                  id
                FROM attendance 
                WHERE status = 'Y' 
                ORDER BY date DESC`
@@ -536,66 +588,111 @@ export const getTimings = async (req: Request, res: Response): Promise<void> => 
  }
 
 
-
-// The `addAttendance` function will handle adding attendance data for a user
-export const addAttendance = async (req: Request, res: Response): Promise<void> => {
-    try {
-        // Extract data from the request body
-        const {
-            userId,
-            date,
-            clockIn,
-            clockOut,
-            day,
-            status,
-            attendanceStatus,
-            leaveReason
-        } = req.body;
-
-        // SQL query to insert attendance data into the table
-        const query = `
-            INSERT INTO attendance (
-                userId,
-                date,
-                clockIn,
-                clockOut,
-                day,
-                status,
-                attendanceStatus,
-                leaveReason
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `;
-
-        // Execute the query
-        const [result]: any = await pool.query(query, [
-            userId,
-            date,
-            clockIn,
-            clockOut,
-            day,
-            status,
-            attendanceStatus,
-            leaveReason
-        ]);
-
-        const [attendance]: any = await pool.query(
-            "SELECT * FROM attendance WHERE userId = ?",
-            [userId]
-        );
-
-        // Send response with success message
-        res.status(201).json({ message: "Attendance recorded successfully",
-        ...attendance[0]
-     });
-    } catch (error) {
-        console.error("❌ Error adding attendance:", error);
-        res.status(500).json({ message: "Internal Server Error" });
-    }
-};
-
-
-
-
+ 
+ export const addAttendance = async (req: Request, res: Response): Promise<void> => {
+     try {
+         const { id } = req.params; // ✅ Get user ID directly from params
+         const { date, clockIn, clockOut, attendanceStatus } = req.body;
+ 
+         // ✅ Validate required fields before inserting attendance
+         if (!id || !date  || !attendanceStatus) {
+             res.status(400).json({ status: 400, message: "Missing required fields" });
+             return;
+         }
+ 
+         // ✅ Check if user exists before inserting attendance
+         const [user]: any = await pool.query(`SELECT id FROM login WHERE id = ?`, [id]);
+         if (!user.length) {
+             res.status(404).json({ status: 404, message: "User not found" });
+             return;
+         }
+ 
+         // ✅ Insert attendance record
+         const query = `
+             INSERT INTO attendance (
+                 userId, date, clockIn, clockOut, day, attendanceStatus
+             ) VALUES (?, ?, ?, ?, DAYNAME(?), ?)
+         `;
+ 
+         const [insertResult]: any = await pool.query(query, [
+             id, date, clockIn, clockOut || null, date, attendanceStatus ?? null
+         ]);
+ 
+         if (insertResult.affectedRows === 0) {
+             res.status(500).json({ status: 500, message: "Failed to add attendance" });
+             return;
+         }
+ 
+         // ✅ Ensure `clockOut` is provided before calculating working hours
+         if (!clockOut) {
+             res.status(200).json({
+                 status: 200,
+                 message: "Attendance recorded successfully, but working hours will be calculated after clock-out."
+             });
+             return;
+         }
+ 
+         // ✅ Calculate working hours
+         const [timeDiffResult]: any = await pool.query(
+             `SELECT 
+                 LPAD(TIMESTAMPDIFF(HOUR, clockIn, clockOut), 2, '0') AS Hours,
+                 LPAD(TIMESTAMPDIFF(MINUTE, clockIn, clockOut) % 60, 2, '0') AS Minutes
+             FROM attendance 
+             WHERE userId = ? AND date = ?`, 
+             [id, date]
+         );
+ 
+         if (timeDiffResult.length === 0) {
+             res.status(404).json({ status: 404, message: "Attendance record not found" });
+             return;
+         }
+ 
+         const { Hours, Minutes } = timeDiffResult[0] || { Hours: "0", Minutes: "00" };
+ 
+         // ✅ Format working hours correctly
+         let formattedWorkingHours = "";
+         if (Hours !== "00" && Hours !== "0") {
+             formattedWorkingHours += `${Hours} Hour${Hours !== "1" ? "s" : ""} `;
+         }
+         if (Minutes !== "00") {
+             formattedWorkingHours += `${Minutes} Minute${Minutes !== "1" ? "s" : ""}`;
+         }
+         if (!formattedWorkingHours) {
+             formattedWorkingHours = "0 Minutes"; // Default if both are 0
+         }
+ 
+         // ✅ Update working hours in the database
+         const [updateResult]: any = await pool.query(
+             `UPDATE attendance 
+              SET workingHours = ? 
+              WHERE userId = ? AND date = ?`, 
+             [formattedWorkingHours.trim(), id, date]
+         );
+ 
+         if (updateResult.affectedRows === 0) {
+             res.status(500).json({ status: 500, message: "Failed to update working hours" });
+             return;
+         }
+ 
+         // ✅ Fetch and return the updated attendance record
+         const [attendance]: any = await pool.query(
+             "SELECT * FROM attendance WHERE userId = ? AND date = ?",
+             [id, date]
+         );
+ 
+         res.status(201).json({
+             status: 201,
+             message: "Attendance recorded successfully",
+             attendance: attendance[0]
+         });
+ 
+     } catch (error) {
+         console.error("❌ Error adding attendance:", error);
+         res.status(500).json({ status: 500, message: "Internal Server Error" });
+     }
+ };
+ 
+ 
 // markAttendance
 export const markAttendance = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -965,7 +1062,6 @@ export const authorizeLeaves = async (req: Request, res: Response): Promise<void
     }
 };
 
-
 export const configHolidays = async (req: Request, res: Response): Promise<void> => {
     try {
         const { date, holiday } = req.body;
@@ -1032,12 +1128,13 @@ export const getHolidays = async (req: Request, res: Response): Promise<void> =>
 // 🛠 Withdraw Employee (POST Request)
 export const withdrawEmployee = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { employeeId, withdrawDate, withdrawStatus, withdrawReason } = req.body;
+        const id = req.params.id;
+        const { withdrawDate, withdrawStatus, withdrawReason } = req.body;
 
-        console.log("Withdraw Request Received:", { employeeId, withdrawDate, withdrawStatus, withdrawReason });
+        console.log("Withdraw Request Received:", {  withdrawDate, withdrawStatus, withdrawReason });
 
         // ✅ Ensure required fields are present
-        if (!employeeId || !withdrawDate || !withdrawStatus || !withdrawReason) {
+        if (!withdrawDate || !withdrawStatus || !withdrawReason) {
             res.status(400).json({ message: "Provide all required fields!" });
             return;
         }
@@ -1047,14 +1144,14 @@ export const withdrawEmployee = async (req: Request, res: Response): Promise<voi
             INSERT INTO withdrawals (employeeId, withdrawDate, withdrawStatus, withdrawReason)
             VALUES (?, ?, ?, ?)
         `;
-        const values = [employeeId, withdrawDate, withdrawStatus, withdrawReason];
+        const values = [id, withdrawDate, withdrawStatus, withdrawReason];
 
         // ✅ Execute query
         const [result]: any = await pool.query(insertQuery, values);
 
         // ✅ Update `status` in `login` table to 'N'
-        const updateQuery = `UPDATE login SET status = 'N' WHERE id = ?`;
-        await pool.query(updateQuery, [employeeId]);
+        const updateQuery = `UPDATE login SET loginStatus = 'N' WHERE id = ?`;
+        await pool.query(updateQuery, [id]);
 
         // ✅ Send success response
         res.status(201).json({
@@ -1383,57 +1480,49 @@ export const getAssignProject = async (req: Request, res: Response): Promise<voi
 
 export const assignProject = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { name, projectName } = req.body;
-        console.log(name, projectName);
+        const { userId, projectId } = req.params; // ✅ Get user & project IDs from URL parameters
+        console.log("User ID:", userId, "Project ID:", projectId);
 
-        // ✅ Fetch User ID from login table
-        const [user]: any = await pool.query(
-            "SELECT id FROM login WHERE name = ?",
-            [name]
-        );
+        // ✅ Validate required parameters
+        if (!userId || !projectId) {
+            res.status(400).json({ message: "Missing userId or projectId!" });
+            return;
+        }
 
+        // ✅ Check if User Exists
+        const [user]: any = await pool.query("SELECT id FROM login WHERE id = ?", [userId]);
         if (user.length === 0) {
             res.status(404).json({ message: "User not found!" });
             return;
         }
-        const userID = user[0].id;
 
-        // ✅ Fetch Project ID from projects table
-        const [project]: any = await pool.query(
-            "SELECT id FROM projects WHERE projectName = ?",
-            [projectName]
-        );
-
+        // ✅ Check if Project Exists
+        const [project]: any = await pool.query("SELECT id FROM projects WHERE id = ?", [projectId]);
         if (project.length === 0) {
             res.status(404).json({ message: "Project not found!" });
             return;
         }
-        const projectID = project[0].id;
 
-        console.log("User ID:", userID, "Project ID:", projectID);
-
-        // ✅ Insert into assignedprojects (Fix: Removed extra columns)
+        // ✅ Insert into `assignedprojects`
         const query = `
             INSERT INTO assignedprojects (employeeId, projectId, date, assignStatus)
             VALUES (?, ?, CURDATE(), 'Y');
         `;
-        const values = [userID, projectID];
+        await pool.query(query, [userId, projectId]);
 
-        await pool.query(query, values);
-
-        // ✅ Fetch assigned project details (Now fetching names properly)
+        // ✅ Fetch assigned project details (Including Names)
         const [assignedProject]: any = await pool.query(`
             SELECT ap.id, l.name AS employeeName, p.projectName, ap.date, ap.assignStatus
             FROM assignedprojects ap
             JOIN login l ON ap.employeeId = l.id
             JOIN projects p ON ap.projectId = p.id
             WHERE ap.employeeId = ? AND ap.projectId = ?;
-        `, [userID, projectID]);
+        `, [userId, projectId]);
 
         // ✅ Send success response
         res.status(201).json({
             message: "Project assigned successfully!",
-            ...assignedProject[0]
+            assignedProject: assignedProject[0] // Return the assigned project details
         });
 
     } catch (error) {
@@ -1568,40 +1657,54 @@ export const getTodo = async (req: Request, res: Response): Promise<void> => {
 
 
 // createTodo
-
 export const createTodo = async (req: Request, res: Response): Promise<void> => {
     try {
-        const {name, task, note, startDate, endDate, deadline} = req.body;
-        const [user]: any = await pool.query(
-            "SELECT id FROM login WHERE name = ?",
-            [name]
-        );
+        const { id } = req.params; // ✅ Get user ID directly from URL parameters
+        const { task, note, startDate, endDate, deadline } = req.body;
 
+        // ✅ Validate required fields before inserting
+        if (!id || !task || !startDate || !endDate || !deadline) {
+            res.status(400).json({ message: "Missing required fields!" });
+            return;
+        }
+
+        // ✅ Check if User Exists
+        const [user]: any = await pool.query("SELECT id FROM login WHERE id = ?", [id]);
         if (user.length === 0) {
             res.status(404).json({ message: "User not found!" });
             return;
         }
-        const userID = user[0].id;
 
-        const query  = `insert into todo (employeeId, task, note, startDate, endDate, deadline) 
-        values (?, ?, ?, ?, ?, ?)`;
+        // ✅ Insert into `todo` table
+        const query = `
+            INSERT INTO todo (employeeId, task, note, startDate, endDate, deadline) 
+            VALUES (?, ?, ?, ?, ?, ?)
+        `;
 
-        const values = [userID, task, note, startDate, endDate, deadline];
+        const values = [id, task, note || null, startDate, endDate, deadline];
+        await pool.query(query, values);
 
-        const [result]:any = await pool.query(query, values);
+        // ✅ Fetch the newly created Todo
+        const [createdTodo]: any = await pool.query(
+            `SELECT t.id, l.name AS employeeName, t.task, t.note, t.startDate, t.endDate, t.deadline
+             FROM todo t 
+             JOIN login l ON l.id = t.employeeId
+             WHERE t.employeeId = ? 
+             ORDER BY t.id DESC LIMIT 1`, 
+            [id]
+        );
 
-        const [createdTodo]:any = await pool.query(`select t.id, l.name, t.task, t.note, t.startDate, t.endDate, t.endDate, t.deadline
-        from todo t 
-        join login l on 
-        l.id = t.employeeId;`);
-        res.status(200).send({message:"todo added successfully!",
+        res.status(201).json({
+            message: "Todo added successfully!",
             ...createdTodo[0]
-        })
+        });
+
     } catch (error) {
-        console.error("❌ Error creating todo!:", error);
+        console.error("❌ Error creating todo:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
-}
+};
+
 
 
 
@@ -1721,45 +1824,60 @@ export const getProgress = async (req: Request, res: Response): Promise<void> =>
 
 
 
-// addProgress
 export const addProgress = async (req: Request, res: Response): Promise<void> => {
     try {
-        const {name, projectName, date, note} = req.body;
+        const { employeeId, projectId } = req.params; // ✅ Get IDs directly from URL parameters
+        const { date, note } = req.body;
 
-    const [user]:any = await pool.query(`select id from login where name = ?`, [name]);
-    if (user.length === 0) {
-        res.status(404).json({ message: "User not found!" });
-        return;
-    }
-    const userID = user[0].id;
+        // ✅ Validate required fields before inserting progress
+        if (!employeeId || !projectId || !date || !note) {
+            res.status(400).json({ message: "Missing required fields!" });
+            return;
+        }
 
-    const [project]:any = await pool.query(`select id from projects where projectName = ?`, projectName);
-    if (project.length === 0) {
-        res.status(404).json({ message: "User not found!" });
-        return;
-    }
-    const projectID = project[0].id;
+        // ✅ Check if Employee Exists
+        const [user]: any = await pool.query("SELECT id FROM login WHERE id = ?", [employeeId]);
+        if (user.length === 0) {
+            res.status(404).json({ message: "User not found!" });
+            return;
+        }
 
-    const query = `insert into progress (employeeId, projectId, date, note) values (?, ?, ?, ?)`
-    const values = [userID, projectID, date, note];
-    const [result]:any = await pool.query(query, values);
+        // ✅ Check if Project Exists
+        const [project]: any = await pool.query("SELECT id FROM projects WHERE id = ?", [projectId]);
+        if (project.length === 0) {
+            res.status(404).json({ message: "Project not found!" });
+            return;
+        }
 
-    const [seeProgress]:any = await pool.query(`select prg.employeeId, prg.projectId, l.name, pro.projectName, prg.note, prg.date
-    from progress prg
-    join login l on 
-    l.id = prg.employeeId
-    join projects pro on
-    prg.projectId = pro.id;`);
+        // ✅ Insert into `progress` table
+        const query = `
+            INSERT INTO progress (employeeId, projectId, date, note) 
+            VALUES (?, ?, ?, ?)
+        `;
+        await pool.query(query, [employeeId, projectId, date, note]);
 
-    res.status(200).send({message:"Progress added successfully!",
-        ...seeProgress[0]
-    })
+        // ✅ Fetch the newly added progress
+        const [seeProgress]: any = await pool.query(
+            `SELECT prg.employeeId, prg.projectId, l.name AS employeeName, 
+                    pro.projectName, prg.note, prg.date
+             FROM progress prg
+             JOIN login l ON l.id = prg.employeeId
+             JOIN projects pro ON prg.projectId = pro.id
+             WHERE prg.employeeId = ? AND prg.projectId = ?
+             ORDER BY prg.date DESC LIMIT 1`, 
+            [employeeId, projectId]
+        );
+
+        res.status(201).json({
+            message: "Progress added successfully!",
+            progress: seeProgress[0]
+        });
 
     } catch (error) {
-        console.error("❌ Error deleting todo:", error);
+        console.error("❌ Error adding progress:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
-}
+};
 
 
 
@@ -1883,46 +2001,63 @@ export const getSales = async (req: Request, res: Response): Promise<void> => {
 
 export const addSales = async (req: Request, res: Response): Promise<void> => {
     try {
-        const {customerName, projectName} = req.body;
-    const [customer]:any  = await pool.query (`select id from customers where customerName = ?`, [customerName]);
-    if(customer.lenght===0){
-        res.send("customer not found!");
-        return;
-    }
-    const customerId  = customer[0].id;
+        const { customerId, projectId } = req.params; // ✅ Get IDs directly from URL parameters
 
-    const [project]:any  = await pool.query (`select id from projects where projectName = ?`, [projectName]);
-    if(project.lenght===0){
-        res.send("customer not found!");
-        return;
-    }
-    const projectId  = project[0].id;
+        // ✅ Validate required fields before inserting sales record
+        if (!customerId || !projectId) {
+            res.status(400).json({ message: "Missing required fields!" });
+            return;
+        }
 
-    const query = `insert into sales (customerId, projectId) values (?, ?)`;
-    const values = [customerId, projectId];
+        // ✅ Check if Customer Exists
+        const [customer]: any = await pool.query("SELECT id FROM customers WHERE id = ?", [customerId]);
+        if (customer.length === 0) {
+            res.status(404).json({ message: "Customer not found!" });
+            return;
+        }
 
-    const [result]:any = await pool.query(query, values);
+        // ✅ Check if Project Exists
+        const [project]: any = await pool.query("SELECT id FROM projects WHERE id = ?", [projectId]);
+        if (project.length === 0) {
+            res.status(404).json({ message: "Project not found!" });
+            return;
+        }
 
-    const [getresult]: any = await pool.query(`SELECT 
+        // ✅ Insert into `sales` table
+        const query = `
+            INSERT INTO sales (customerId, projectId) 
+            VALUES (?, ?)
+        `;
+        await pool.query(query, [customerId, projectId]);
+
+        // ✅ Fetch the newly added sales record
+        const [getresult]: any = await pool.query(
+            `SELECT 
                 s.id,
                 s.customerId,
                 c.customerName,
                 s.projectId,
                 p.projectName,
                 s.salesStatus
-            FROM sales s
-            JOIN customers c ON s.customerId = c.id
-            JOIN projects p ON s.projectId = p.id;
-            `)
+             FROM sales s
+             JOIN customers c ON s.customerId = c.id
+             JOIN projects p ON s.projectId = p.id
+             WHERE s.customerId = ? AND s.projectId = ?
+             ORDER BY s.id DESC LIMIT 1`,
+            [customerId, projectId]
+        );
 
-    res.status(200).send({message: "Sales report added successfully!",
-        ...getresult[0]
-    })
+        res.status(201).json({
+            message: "Sales report added successfully!",
+            sales: getresult[0]
+        });
+
     } catch (error) {
         console.error("❌ Error adding sales:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
-}
+};
+
 
 
 
@@ -2058,36 +2193,52 @@ export const getPayments = async (req: Request, res: Response): Promise<void> =>
 
 export const addPayment = async (req: Request, res: Response): Promise<void> => {
     try {
-        const {paymentMethod, customerName, description, amount, date} = req.body;  
-        const [customer]:any = await pool.query(`select id from customers where customerName= ?`, [customerName]);
-        if(customer.lenght===0){
-            res.send({message: "customer not found!"})
+        const { id } = req.params;
+        const { paymentMethod, description, amount, date } = req.body;
+
+        if (!id || !paymentMethod || !amount || !date) {
+            res.status(400).json({ message: "Missing required fields!" });
             return;
         }
-        const customerId = customer[0].id;
 
-        const query = `insert into payments (paymentMethod, customerId, description, amount,  date) values (?, ?, ?, ?, ?)`;
-        const values = [paymentMethod, customerId, description, amount, date];
+        const [customer]: any = await pool.query("SELECT id FROM customers WHERE id = ?", [id]);
+        if (customer.length === 0) {
+            res.status(404).json({ message: "Customer not found!" });
+            return;
+        }
 
-        const [result]:any = await pool.query(query, values);
-        const [addedPayments]:any = await pool.query(`SELECT 
+        const query = `
+            INSERT INTO payments (paymentMethod, customerId, description, amount, date) 
+            VALUES (?, ?, ?, ?, ?)
+        `;
+        await pool.query(query, [paymentMethod, id, description || null, amount, date]);
+
+        const [addedPayments]: any = await pool.query(
+            `SELECT 
                 p.paymentMethod, 
                 p.customerId, 
                 c.customerName, 
                 p.description, 
                 p.amount, 
                 p.date
-            FROM payments p
-            JOIN customers c ON p.customerId = c.id;
-            `);
-        res.status(200).send({message:"Payment information added successfully!",
-            ...addedPayments
-        })
+             FROM payments p
+             JOIN customers c ON p.customerId = c.id
+             WHERE p.customerId = ?
+             ORDER BY p.date DESC LIMIT 1`,
+            [id]
+        );
+
+        res.status(201).json({
+            message: "Payment information added successfully!",
+            payment: addedPayments[0]
+        });
+
     } catch (error) {
         console.error("❌ Error adding payment:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
-}
+};
+
 
 
 
@@ -2218,7 +2369,8 @@ export const addQuotationDetail = async (req: Request, res: Response): Promise<v
 
 export const addQuotation = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { customerName, date, taxRate, shippingHandling } = req.body;
+        const { customerId } = req.params;
+        const { date, taxRate, shippingHandling } = req.body;
         const sessionData: any = req.session;
 
         if (!sessionData.cart || sessionData.cart.length === 0) {
@@ -2226,56 +2378,52 @@ export const addQuotation = async (req: Request, res: Response): Promise<void> =
             return;
         }
 
-        // ✅ Step 1: Fetch Latest `invoiceno` from `invoiceno` Table
         const [latestInvoice]: any = await pool.query("SELECT id FROM invoiceno ORDER BY id DESC LIMIT 1");
-        let invoiceno = latestInvoice.length > 0 ? latestInvoice[0].id : 1; // Default to 1 if no records exist
+        let invoiceno = latestInvoice.length > 0 ? latestInvoice[0].id : 1;
 
-        // ✅ Step 2: Prepare Data for `quotationdetail`
         const values: any[] = [];
         let subTotal = 0;
 
         for (let item of sessionData.cart) {
             const itemSubTotal = item.QTY * item.UnitPrice;
-            subTotal += itemSubTotal; // Calculate subTotal
+            subTotal += itemSubTotal;
             values.push([invoiceno, item.description, item.QTY, item.UnitPrice, itemSubTotal]);
         }
 
-        // ✅ Step 3: Insert `quotationdetail` Records
         await pool.query(
             `INSERT INTO quotationdetail (invoiceno, description, QTY, UnitPrice, subtotal) VALUES ?`,
             [values]
         );
-        const [customer]:any = await pool.query(`select id from customers  where customerName = ?`, [customerName])
-        const customerId = customer[0].id;
 
-        // ✅ Step 4: Calculate Totals
+        const [customer]: any = await pool.query("SELECT id FROM customers WHERE id = ?", [customerId]);
+        if (customer.length === 0) {
+            res.status(404).json({ message: "Customer not found!" });
+            return;
+        }
+
         const totalTax = (subTotal * taxRate) / 100;
         const totalBill = subTotal + totalTax + shippingHandling;
 
-        // ✅ Step 5: Insert into `quotation` Table
         await pool.query(
             `INSERT INTO quotation (customerId, date, subTotal, taxRate, totalTax, shippingHandling, totalBill, invoiceno)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
             [customerId, date, subTotal, taxRate, totalTax, shippingHandling, totalBill, invoiceno]
         );
 
-        // ✅ Step 6: Increment `invoiceno` Table for Future Quotations
-        await pool.query("INSERT INTO invoiceno VALUES ()"); // ✅ Correct way to insert new invoiceno
+        await pool.query("INSERT INTO invoiceno VALUES ()");
 
-        const getSavedData = await pool.query(`select q.customerId, c.customerName, c.customerAddress, c.customerContact, q.date, q.subTotal, q.taxRate, q.shippingHandling, q.totalBill, q.invoiceno, i.quotationNo
-            from quotation q 
-            join customers c on
-            q.customerId = c.id
-            join invoiceno i
-            on   i.id = q.invoiceno
-            where quotationStatus = 'Y'`);
+        const getSavedData = await pool.query(`SELECT q.customerId, c.customerName, c.customerAddress, c.customerContact, 
+            q.date, q.subTotal, q.taxRate, q.shippingHandling, q.totalBill, q.invoiceno, i.quotationNo
+            FROM quotation q 
+            JOIN customers c ON q.customerId = c.id
+            JOIN invoiceno i ON i.id = q.invoiceno
+            WHERE quotationStatus = 'Y'`);
 
-        // ✅ Clear session cart after saving
         sessionData.cart = [];
 
         res.status(200).json({
             message: "Quotation finalized successfully!",
-            ...getSavedData[0] 
+            ...getSavedData[0]
         });
 
     } catch (error) {
@@ -2283,6 +2431,7 @@ export const addQuotation = async (req: Request, res: Response): Promise<void> =
         res.status(500).json({ message: "Internal Server Error!" });
     }
 };
+
 
 
 
@@ -2611,7 +2760,6 @@ export const updateExpense = async (req: Request, res: Response): Promise<void> 
             return;
         }
 
-        // ✅ Fetch `expenseCategoryId` from `expenseCategory` table
         const [category]: any = await pool.query(
             "SELECT id FROM expenseCategory WHERE CategoryName = ?", 
             [expenseCategoryName]
@@ -2649,7 +2797,6 @@ export const deleteExpense = async (req: Request, res: Response): Promise<void> 
     try {
         const id = req.params.id;
 
-        // ✅ Check if category exists and is active
         const [existingCategory]: any = await pool.query(
             "SELECT * FROM expenses WHERE id = ? AND expenseStatus = 'Y'",
             [id]
@@ -2661,11 +2808,9 @@ export const deleteExpense = async (req: Request, res: Response): Promise<void> 
         }
 
 
-        // ✅ Update `categoryStatus` from 'Y' to 'N' (Soft Delete)
         const updateQuery = `UPDATE expenses SET expenseStatus = 'N' WHERE id = ?`;
         await pool.query(updateQuery, [id]);
 
-        // ✅ Send success response
         res.status(200).json({
             message: "Category successfully disabled (soft deleted)!"
         });
@@ -2675,3 +2820,67 @@ export const deleteExpense = async (req: Request, res: Response): Promise<void> 
         res.status(500).json({ message: "Internal Server Error" });
     }
 }
+
+
+
+
+
+export const getSalaryInfo = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const [result]:any = await pool.query( `select s.* , l.name
+            from configureSalaries s
+            join login l on
+            s.employeeId = l.id`
+        );
+
+        res.status(200).send([ "Salary information fetched successfully!",
+            ...result
+            ])
+    } catch (error) {
+        console.error("❌ Error fetching information:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+}
+
+
+
+
+export const configureSalary = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { id } = req.params;
+        const { monthlySalary, overtimeAllowance, projectAllowance, bonusAllowance, medicalAllowance, date, wefDate, wefStatus } = req.body;
+
+        if (!id || !monthlySalary || !date || !wefDate || !wefStatus) {
+            res.status(400).json({ message: "Missing required fields!" });
+            return;
+        }
+
+        const [employee]: any = await pool.query("SELECT id FROM login WHERE id = ?", [id]);
+        if (employee.length === 0) {
+            res.status(404).json({ message: "Employee not found!" });
+            return;
+        }
+
+        const query = `
+            INSERT INTO configureSalaries(employeeId, monthlySalary, overtimeAllowance, projectAllowance, bonusAllowance, 
+                medicalAllowance, date, wefDate, wefStatus) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `;
+
+        const [result]: any = await pool.query(query, [id, monthlySalary, overtimeAllowance, projectAllowance, bonusAllowance, medicalAllowance, date, wefDate, wefStatus]);
+
+        res.status(201).json({
+            message: "Salary Information added successfully!",
+            ...result[0]
+        });
+
+    } catch (error) {
+        console.error("❌ Error adding information:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+
+
+
+

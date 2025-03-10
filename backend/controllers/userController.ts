@@ -1,5 +1,70 @@
 import { Request, Response } from "express";
+import bcrypt from "bcrypt";
 import pool from "../database/db"; 
+
+
+
+
+export const changePassword = async (
+    req: Request,
+    res: Response
+  ): Promise<void> => {
+    try {
+      const { id } = req.params; // ✅ Corrected: Extract `id` properly
+      const { oldPassword, newPassword } = req.body;
+  
+      if (!id || !oldPassword || !newPassword) {
+        res.status(400).json({
+          status: 400,
+          message: "Please provide user ID, old password, and new password!",
+        });
+        return;
+      }
+  
+      // Fetch the stored password from the database
+      const [rows]: any = await pool.query(
+        `SELECT password FROM login WHERE id = ?`,
+        [id]
+      );
+  
+      if (rows.length === 0) {
+        res.status(404).json({ status: 404, message: "User not found" });
+        return;
+      }
+  
+      const storedPassword = rows[0].password;
+      const isMatch = await bcrypt.compare(oldPassword, storedPassword);
+  
+      if (!isMatch) {
+        res.status(400).json({ status: 400, message: "Invalid Password" });
+        return;
+      }
+  
+      // Hash the new password
+      const hashNewPassword = await bcrypt.hash(newPassword, 10);
+  
+      // Update password in the database
+      const [updateResult]: any = await pool.query(
+        `UPDATE login SET password = ? WHERE id = ?`,
+        [hashNewPassword, id]
+      );
+  
+      if (updateResult.affectedRows === 0) {
+        res.status(500).json({ status: 500, message: "Password update failed" });
+        return;
+      }
+  
+      res
+        .status(200)
+        .json({ status: 200, message: "Password changed successfully!" });
+    } catch (error) {
+      console.error("❌ Error Changing Password:", error);
+      res.status(500).json({ status: 500, message: "Internal Server Error" });
+    }
+  };
+
+
+
 
 // 🛠 Get Attendance Function (Now Properly Checks User Existence)
 export const getAttendance = async (req: Request, res: Response) => {

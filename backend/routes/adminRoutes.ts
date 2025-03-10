@@ -1,5 +1,5 @@
 import { Application } from "express";
-import { getAllUsers, login, addUser, changePassword, updateUser, deleteUser, getAllCustomer, addCustomerInfo, updateCustomer, deleteCustomer, getAttendance, addAttendance, updateAttendance, deleteAttendance, getUsersLeaves, authorizeLeaves, configHolidays, getHolidays, withdrawEmployee, createCatagory, addProject, alterCategory, deleteCategory, alterProjectInfo, deleteProject,  getProjects, assignProject, getAssignProject, alterAssignProject, deleteAssignment, createTodo, alterTodo, deleteTodo, getTodo, addProgress, alterProgress, deleteProgress, getProgress, addSales, alterSalesData, deleteSale, addPayment, getSales, alterPayments, deletePayment, getPayments, uploadedFile, getuploadfile, getCategory, markAttendance, getTimings, attendanceSummary, addQuotationDetail, addQuotation, getQuotations, updateQuotation, deleteQuotation, getExpenseCategory, createExpenseCatagory, alterExpenseCategory, deleteExpenseCategory, addExpense, updateExpense, deleteExpense, getAllAttendances} from "../controllers/adminController";
+import { getAllUsers, login, addUser, forgetPassword, updateUser, deleteUser, getAllCustomer, addCustomerInfo, updateCustomer, deleteCustomer, getAttendance, addAttendance, updateAttendance, deleteAttendance, getUsersLeaves, authorizeLeaves, configHolidays, getHolidays, withdrawEmployee, createCatagory, addProject, alterCategory, deleteCategory, alterProjectInfo, deleteProject,  getProjects, assignProject, getAssignProject, alterAssignProject, deleteAssignment, createTodo, alterTodo, deleteTodo, getTodo, addProgress, alterProgress, deleteProgress, getProgress, addSales, alterSalesData, deleteSale, addPayment, getSales, alterPayments, deletePayment, getPayments, uploadedFile, getuploadfile, getCategory, markAttendance, getTimings, attendanceSummary, addQuotationDetail, addQuotation, getQuotations, updateQuotation, deleteQuotation, getExpenseCategory, createExpenseCatagory, alterExpenseCategory, deleteExpenseCategory, addExpense, updateExpense, deleteExpense, getAllAttendances, configureSalary, changePassword, getSalaryInfo} from "../controllers/adminController";
 import { authenticateToken, isAdmin } from "../middleware/middleware";
 import { upload } from "../middleware/uploadMiddleware"; 
 // import  path  from 'path';
@@ -13,6 +13,9 @@ export default (app: Application): void => {
 
     // app.post('/admin/addUsers',upload.single("image"), authenticateToken, isAdmin, addUser);
     app.post('/admin/addUser',upload.single("image"),  addUser);
+
+    app.post('/admin/forgetPassword/:id', forgetPassword);
+
 
     app.put('/admin/changePassword/:id',authenticateToken, isAdmin, changePassword);
     // app.put('/admin/changePassword/:id', changePassword);
@@ -45,19 +48,19 @@ export default (app: Application): void => {
 
 
     app.get("/admin/getAttendance/:id", authenticateToken, isAdmin, getAttendance);
-  // app.get('/admin/getAttendance', getAttendance);
+  // app.get('/admin/getAttendance/:id', getAttendance);
 
 
   // getAllAttendances
-  app.get("/admin/getAllAttendances", authenticateToken, isAdmin, getAllAttendances);
+  app.get("/admin/getAllAttendances", getAllAttendances);
 
 
     app.get('/admin/getTimings',  getTimings);
 
     app.post('/admin/markAttendance/:id',  markAttendance);
 
-    // app.post('/admin/addAttendance', authenticateToken, isAdmin, addAttendance);
-    app.post('/admin/addAttendance', addAttendance);
+    // app.post('/admin/addAttendance/:id', authenticateToken, isAdmin, addAttendance);
+    app.post('/admin/addAttendance/:id', addAttendance);
 
     // app.put('/admin/updateAttendance/:id', authenticateToken, isAdmin, updateAttendance);
     app.put('/admin/updateAttendance/:id', updateAttendance);
@@ -81,7 +84,7 @@ export default (app: Application): void => {
     app.post('/admin/configHolidays', authenticateToken, isAdmin, configHolidays);
     // app.post('/admin/configHolidays', configHolidays);
 
-    app.post('/admin/withdrawEmployees', authenticateToken, isAdmin, withdrawEmployee);
+    app.post('/admin/withdrawEmployees/:id', authenticateToken, isAdmin, withdrawEmployee);
     // app.post('/admin/withdrawEmployee', withdrawEmployee);
 
 
@@ -117,7 +120,7 @@ export default (app: Application): void => {
     // ======> assign project:
     app.get('/admin/getAssignProjects/:entry',authenticateToken, isAdmin, getAssignProject);
 
-    app.post('/admin/assignProject', authenticateToken, isAdmin, assignProject);
+    app.post('/admin/assignProject/:userId/:projectId', authenticateToken, isAdmin, assignProject);
 
     app.put('/admin/alterAssignProject/:id',authenticateToken, isAdmin, alterAssignProject);
 
@@ -130,7 +133,7 @@ export default (app: Application): void => {
     //todo and progress:
     app.get('/admin/getTodos/:entry',authenticateToken, isAdmin, getTodo);
 
-    app.post('/admin/createTodo',authenticateToken, isAdmin, createTodo);
+    app.post('/admin/createTodo/:id',authenticateToken, isAdmin, createTodo);
 
     app.post('/admin/alterTodo/:id',authenticateToken, isAdmin, alterTodo); 
 
@@ -139,7 +142,7 @@ export default (app: Application): void => {
 
     app.get('/admin/getProgress/:entry',authenticateToken, isAdmin, getProgress);
 
-    app.post('/admin/addProgress',authenticateToken, isAdmin, addProgress);
+    app.post('/admin/addProgress/:employeeId/:projectId', authenticateToken, isAdmin, addProgress);
 
     app.post ('/admin/alterProgress/:id',authenticateToken, isAdmin, alterProgress);
 
@@ -153,7 +156,7 @@ export default (app: Application): void => {
     //add sales and payments:
     app.get('/admin/getSales/:entry',authenticateToken, isAdmin, getSales);
 
-    app.post('/admin/addSales',authenticateToken, isAdmin, addSales);
+    app.post('/admin/addSales/:customerId/:projectId',authenticateToken, isAdmin, addSales);
 
     app.post('/admin/alterSalesData/:id',authenticateToken, isAdmin, alterSalesData);
 
@@ -165,7 +168,7 @@ export default (app: Application): void => {
 
     app.get('/admin/getPayments/:entry',authenticateToken, isAdmin, getPayments);
 
-    app.post('/admin/addPayment',authenticateToken, isAdmin, addPayment);
+    app.post('/admin/addPayment/:id',authenticateToken, isAdmin, addPayment);
 
     app.put('/admin/alterPayments/:id',authenticateToken, isAdmin, alterPayments);
 
@@ -179,7 +182,7 @@ export default (app: Application): void => {
     app.post('/admin/addQuotationDetail', addQuotationDetail);
 
 
-    app.post('/admin/addQuotation', addQuotation);
+    app.post('/admin/addQuotation/:customerId', addQuotation);
 
     app.get('/admin/getQuotations', getQuotations);
 
@@ -205,6 +208,12 @@ export default (app: Application): void => {
     app.put('/admin/updateExpense/:id', updateExpense);
 
     app.patch('/admin/deleteExpense/:id', deleteExpense);
+
+
+
+    //monthly account cycle:
+    app.get('/admin/getSalaryInfo', getSalaryInfo);
+   app.post('/admin/configureSalary/:id', configureSalary);
 
     
     app.get('/getuploadfile', getuploadfile);
