@@ -73,8 +73,8 @@ export default (app: Application): void => {
     app.post("/admin/addLeave/:id",   addLeave);
     
 
-    app.get('/admin/getUsersLeaves/:entry', authenticateToken, isAdmin,  getUsersLeaves);
-    // app.get('/admin/getUsersLeaves/:entry',  getUsersLeaves); 
+    // app.get('/admin/getUsersLeaves/:entry', authenticateToken, isAdmin,  getUsersLeaves);
+    app.get('/admin/getUsersLeaves/:entry',  getUsersLeaves);  
 
     app.put('/admin/authorizeLeaves/:id', authenticateToken, isAdmin, authorizeLeaves);
     // app.put('/admin/authorizeLeaves/:id', authorizeLeaves);

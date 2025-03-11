@@ -979,7 +979,7 @@ export const getUsersLeaves = async (req: Request, res: Response): Promise<void>
         const query = `
             SELECT 
                 a.userId,
-                l.name AS user_name,
+                l.name AS name,
                 a.date,
                 a.day,
                 a.attendanceStatus,
@@ -987,6 +987,7 @@ export const getUsersLeaves = async (req: Request, res: Response): Promise<void>
                 a.leaveApprovalStatus
             FROM attendance a
             JOIN login l ON a.userId = l.id
+            where a.attendanceStatus = 'Leave'
             ORDER BY a.date DESC LIMIT ?
         `;
 
@@ -999,10 +1000,9 @@ export const getUsersLeaves = async (req: Request, res: Response): Promise<void>
         }
 
         // ✅ Send attendance records with user names
-        res.status(200).json({
-            message: "Attendance records fetched successfully",
-            ...attendance[0]
-        });
+        res.status(200).json(["Attendance records fetched successfully",
+            ...attendance
+        ]);
 
     } catch (error) {
         console.error("❌ Error fetching attendance:", error);
@@ -1027,7 +1027,7 @@ export const addLeave = async (req: Request, res: Response): Promise<void> => {
         console.log("Received Data:", { userId, date, leaveReason });
 
         const [existingLeave]: any = await pool.query(
-            "SELECT COUNT(*) AS leaveCount FROM attendance WHERE userId = ? AND date = CURDATE() AND attendanceStatus = 'Leave'",
+            "SELECT COUNT(*)  AS leaveCount FROM attendance WHERE userId = ? AND date = CURDATE() AND attendanceStatus = 'Leave'",
             [userId]
         );
 

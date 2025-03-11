@@ -286,4 +286,4 @@ export const addLeave = async (req: Request, res: Response): Promise<void> => {
         console.error("❌ Error adding leave:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
-};
+};  
