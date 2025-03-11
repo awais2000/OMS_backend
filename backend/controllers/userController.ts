@@ -236,26 +236,20 @@ console.log(`Final Working Hours: ${formattedWorkingHours}`);
 
 
 
-
 export const addLeave = async (req: Request, res: Response): Promise<void> => {
     try {
-        
-        const userId = req.params.id;
+        const { id: userId } = req.params;
+        const { leaveReason } = req.body;
 
-        const { attendanceStatus, leaveReason } = req.body;
-
-        // ✅ Ensure required fields are present
-        if (!attendanceStatus || !leaveReason) {
-            res.status(400).json({ message: "Provide all the required information!" });
+        if (!userId || !leaveReason) {
+            res.status(400).json({ message: "Provide all required information!" });
             return;
         }
 
-        // ✅ Set date to today
-        const date = new Date().toISOString().split("T")[0]; // Format YYYY-MM-DD
+        const date = new Date().toISOString().split("T")[0];
 
-        console.log("Received Data:", userId, attendanceStatus, date, leaveReason);
+        console.log("Received Data:", { userId, date, leaveReason });
 
-        // ✅ Check if user has already submitted a leave request for today
         const [existingLeave]: any = await pool.query(
             "SELECT COUNT(*) AS leaveCount FROM attendance WHERE userId = ? AND date = CURDATE() AND attendanceStatus = 'Leave'",
             [userId]
@@ -266,24 +260,21 @@ export const addLeave = async (req: Request, res: Response): Promise<void> => {
             return;
         }
 
-        // ✅ SQL Query (Insert into `attendance` table with automatic current day)
         const query = `
             INSERT INTO attendance (userId, date, day, attendanceStatus, leaveReason, leaveApprovalStatus)
-            VALUES (?, CURDATE(), DAYNAME(CURDATE()), ?, ?, 'Pending')
+            VALUES (?, ?, DAYNAME(?), 'Leave', ?, 'Pending')
         `;
 
-        const values = [userId, attendanceStatus, leaveReason];
+        const values = [userId, date, date, leaveReason];
 
-        // ✅ Execute the query
         const [result]: any = await pool.query(query, values);
 
-        // ✅ Fetch updated leave records for the frontend
+        // ✅ Fetch updated leave records
         const [updatedLeaves]: any = await pool.query(
             "SELECT * FROM attendance WHERE userId = ? ORDER BY date DESC",
             [userId]
         );
 
-        // ✅ Send success response with updated leave data
         res.status(201).json({
             status: 201,
             message: "Leave added successfully",

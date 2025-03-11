@@ -497,47 +497,64 @@ export const deleteCustomer = async (req: Request, res: Response): Promise<void>
 
 
 // getAllAttendance
-export const getAttendance = async (
-    req: Request,
-    res: Response
-  ): Promise<void> => {
+export const getAttendance = async (req: Request, res: Response): Promise<void> => {
     try {
-      const id = req.params.id;
-      // ✅ Fetch the latest attendance record for each user
-      const [attendance]: any = await pool.query(
-        `SELECT 
-                  userId, 
-                  CONVERT_TZ(date, '+00:00', @@session.time_zone) AS date, 
-                  clockIn, 
-                  clockOut, 
-                  day, 
-                  status, 
-                  attendanceStatus, 
-                  leaveReason, 
-                  leaveApprovalStatus, 
-                  workingHours
-               FROM attendance 
-               WHERE status = 'Y' AND userId = ?
-               ORDER BY date DESC`, [id]
-      );
-  
-      if (attendance.length === 0) {
-        res
-          .status(404)
-          .json({ status: 404, message: "No attendance records found" });
-        return;
-      }
-  
-      // ✅ Send only the latest attendance records per user
-      res.status(200).json({
-        message: "Latest attendance records fetched successfully",
-        ...attendance[0],
-      });
+        const { id } = req.params;
+
+        const [attendance]: any = await pool.query(
+            `SELECT 
+                userId, 
+                date, 
+                clockIn, 
+                clockOut, 
+                day, 
+                status, 
+                attendanceStatus, 
+                leaveReason, 
+                leaveApprovalStatus, 
+                workingHours
+             FROM attendance 
+             WHERE userId = ? AND date = CURDATE()
+             ORDER BY date DESC 
+             LIMIT 1`, 
+            [id]
+        );
+
+        if (attendance.length === 0) {
+            res.status(404).json({ status: 404, message: "No attendance record found for today." });
+            return;
+        }
+
+        const attendanceData = attendance[0];
+
+        // ✅ Determine what to return
+        if (!attendanceData.clockIn) {
+            res.status(200).json({
+                message: "Clock-in time not recorded yet",
+                status: "Awaiting Clock-in"
+            });
+            return;
+        }
+
+        if (!attendanceData.clockOut) {
+            res.status(200).json({
+                message: "Clock-in recorded successfully",
+                clockIn: attendanceData.clockIn,
+                status: "Clock-in Registered"
+            });
+            return;
+        }
+
+        res.status(200).json(["Clock-out recorded successfully",
+            ...attendance
+        ]);
+
     } catch (error) {
-      console.error("❌ Error fetching attendance:", error);
-      res.status(500).json({ status: 500, message: "Internal Server Error" });
+        console.error("❌ Error fetching attendance:", error);
+        res.status(500).json({ status: 500, message: "Internal Server Error" });
     }
-  };
+};
+
   
   export const getAllAttendances = async (
     req: Request,
@@ -899,43 +916,27 @@ export const updateAttendance = async (req: Request, res: Response): Promise<voi
 };
 
 
-//disabling a user:
+
 export const deleteAttendance = async (req: Request, res: Response): Promise<void> => {
     try {
-        // Extract the attendance ID from the URL parameters
-        const { id } = req.params;  // Assumes the ID is passed as a URL parameter
+        const { id } = req.params;
 
-        // SQL query to update the status to 'N' and null other fields
-        const query = `
-            UPDATE attendance
-            SET
-                status = 'N',
-                clockIn = NULL,
-                clockOut = NULL,
-                day = NULL,
-                attendanceStatus = NULL,
-                leaveReason = NULL
-            WHERE userId = ?
-        `;
+        const query = `DELETE FROM attendance WHERE id = ?`;
 
-        // Execute the query
         const [result]: any = await pool.query(query, [id]);
 
-        const [getActiveUsers]:any = await pool.query(`select * from attendance where attendanceStatus = 'Y'`);
-        // Check if the record was updated
         if (result.affectedRows > 0) {
-            res.json({ message: "Attendance status updated successfully to 'N' and other fields nullified.",
-                ...getActiveUsers
-             });
+            res.json({ message: "Attendance record permanently deleted." });
         } else {
             res.status(404).json({ message: "Attendance record not found" });
         }
 
     } catch (error) {
-        console.error("❌ Error updating attendance:", error);
+        console.error("❌ Error deleting attendance:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
+
 
 
 
@@ -1005,6 +1006,60 @@ export const getUsersLeaves = async (req: Request, res: Response): Promise<void>
 
     } catch (error) {
         console.error("❌ Error fetching attendance:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+
+
+export const addLeave = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { id: userId } = req.params;
+        const { leaveReason } = req.body;
+
+        if (!userId || !leaveReason) {
+            res.status(400).json({ message: "Provide all required information!" });
+            return;
+        }
+
+        const date = new Date().toISOString().split("T")[0];
+
+        console.log("Received Data:", { userId, date, leaveReason });
+
+        const [existingLeave]: any = await pool.query(
+            "SELECT COUNT(*) AS leaveCount FROM attendance WHERE userId = ? AND date = CURDATE() AND attendanceStatus = 'Leave'",
+            [userId]
+        );
+
+        if (existingLeave[0].leaveCount > 0) {
+            res.status(400).json({ message: "You have already submitted a leave request for today." });
+            return;
+        }
+
+        const query = `
+            INSERT INTO attendance (userId, date, day, attendanceStatus, leaveReason, leaveApprovalStatus)
+            VALUES (?, ?, DAYNAME(?), 'Leave', ?, 'Pending')
+        `;
+
+        const values = [userId, date, date, leaveReason];
+
+        const [result]: any = await pool.query(query, values);
+
+        // ✅ Fetch updated leave records
+        const [updatedLeaves]: any = await pool.query(
+            "SELECT * FROM attendance WHERE userId = ? ORDER BY date DESC",
+            [userId]
+        );
+
+        res.status(201).json({
+            status: 201,
+            message: "Leave added successfully",
+            leaveId: result.insertId,
+            ...updatedLeaves[0]
+        });
+
+    } catch (error) {
+        console.error("❌ Error adding leave:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };

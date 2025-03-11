@@ -9,8 +9,8 @@ export default (app: Application): void => {
 
     app.post('/user/markAttendance/:id', markAttendance);
 
-    app.post("/user/addLeave",authenticateToken,  addLeave);
-    // app.post("/users/addLeave/:id",  addLeave);
+    // app.post("/user/addLeave",authenticateToken,  addLeave);
+    app.post("/user/addLeave/:id",  addLeave);
 }
 
 
