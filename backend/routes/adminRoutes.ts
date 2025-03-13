@@ -4,7 +4,7 @@ import { authenticateToken, isAdmin } from "../middleware/middleware";
 import { upload } from "../middleware/uploadMiddleware"; 
 // import  path  from 'path';
 
-
+  
 export default (app: Application): void => {
     app.post("/login", login);
 
@@ -76,8 +76,8 @@ export default (app: Application): void => {
     // app.get('/admin/getUsersLeaves/:entry', authenticateToken, isAdmin,  getUsersLeaves);
     app.get('/admin/getUsersLeaves/:entry',  getUsersLeaves);  
 
-    app.put('/admin/authorizeLeaves/:id', authenticateToken, isAdmin, authorizeLeaves);
-    // app.put('/admin/authorizeLeaves/:id', authorizeLeaves);
+    // app.put('/admin/authorizeLeaves/:id', authenticateToken, isAdmin, authorizeLeaves);
+    app.put('/admin/authorizeLeaves/:id', authorizeLeaves);
 
 
 
@@ -113,7 +113,7 @@ export default (app: Application): void => {
 
     app.post('/admin/addProject',authenticateToken, isAdmin, addProject);
 
-    app.put('/admin/alterProjectInfo/:id',authenticateToken, isAdmin, alterProjectInfo);
+    app.put('/admin/alterProjectInfo/:id',authenticateToken, isAdmin, alterProjectInfo);//===============>change update
 
     app.patch('/admin/deleteProject/:id',authenticateToken, isAdmin, deleteProject);
 
@@ -125,7 +125,7 @@ export default (app: Application): void => {
 
     app.post('/admin/assignProject/:userId/:projectId', authenticateToken, isAdmin, assignProject);
 
-    app.put('/admin/alterAssignProject/:id',authenticateToken, isAdmin, alterAssignProject);
+    app.put('/admin/alterAssignProject/:employeeId/:projectId/:id',  authenticateToken, isAdmin, alterAssignProject);
 
     app.patch('/admin/deleteAssignment/:id',authenticateToken, isAdmin, deleteAssignment);
 
@@ -138,7 +138,7 @@ export default (app: Application): void => {
 
     app.post('/admin/createTodo/:id',authenticateToken, isAdmin, createTodo);
 
-    app.post('/admin/alterTodo/:id',authenticateToken, isAdmin, alterTodo); 
+    app.put('/admin/alterTodo/:employeeId/:id',authenticateToken, isAdmin, alterTodo); 
 
     app.patch('/admin/deleteTodo/:id',authenticateToken, isAdmin, deleteTodo); 
 
@@ -147,7 +147,7 @@ export default (app: Application): void => {
 
     app.post('/admin/addProgress/:employeeId/:projectId', authenticateToken, isAdmin, addProgress);
 
-    app.post ('/admin/alterProgress/:id',authenticateToken, isAdmin, alterProgress);
+    app.put ('/admin/alterProgress/:employeeId/:projectId/:id',  authenticateToken, isAdmin, alterProgress);
 
     app.patch('/admin/deleteProgress/:id',authenticateToken, isAdmin, deleteProgress); 
     
@@ -161,7 +161,7 @@ export default (app: Application): void => {
 
     app.post('/admin/addSales/:customerId/:projectId',authenticateToken, isAdmin, addSales);
 
-    app.post('/admin/alterSalesData/:id',authenticateToken, isAdmin, alterSalesData);
+    app.put('/admin/alterSalesData/:customerId/:projectId/:id', authenticateToken, isAdmin, alterSalesData);
 
     app.patch('/admin/deleteSale/:id',authenticateToken, isAdmin, deleteSale);
 
@@ -173,7 +173,7 @@ export default (app: Application): void => {
 
     app.post('/admin/addPayment/:id',authenticateToken, isAdmin, addPayment);
 
-    app.put('/admin/alterPayments/:id',authenticateToken, isAdmin, alterPayments);
+    app.put('/admin/alterPayments/:customerId/:id',authenticateToken, isAdmin,  alterPayments);
 
     app.patch('/admin/deletePayment/:id',authenticateToken, isAdmin, deletePayment);
 
@@ -205,10 +205,10 @@ export default (app: Application): void => {
     app.patch('/admin/deleteExpenseCategory/:id', deleteExpenseCategory);
 
 
-    app.post('/admin/addExpense', addExpense);
+    app.post('/admin/addExpense/:expenseCategoryId', addExpense);
 
 
-    app.put('/admin/updateExpense/:id', updateExpense);
+    app.put('/admin/updateExpense/:categoryId/:id', updateExpense); //=====>
 
     app.patch('/admin/deleteExpense/:id', deleteExpense);
 

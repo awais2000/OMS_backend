@@ -1012,42 +1012,40 @@ export const getUsersLeaves = async (req: Request, res: Response): Promise<void>
 
 
 
+
 export const addLeave = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { id: userId } = req.params;
-        const { leaveReason } = req.body;
+        const { id } = req.params;  
+        const { date, leaveSubject, leaveReason } = req.body;
 
-        if (!userId || !leaveReason) {
+        const userId = Number(id); 
+
+        if (!userId || !date || !leaveSubject || !leaveReason) {
             res.status(400).json({ message: "Provide all required information!" });
             return;
         }
 
-        const date = new Date().toISOString().split("T")[0];
-
-        console.log("Received Data:", { userId, date, leaveReason });
-
         const [existingLeave]: any = await pool.query(
-            "SELECT COUNT(*)  AS leaveCount FROM attendance WHERE userId = ? AND date = CURDATE() AND attendanceStatus = 'Leave'",
-            [userId]
+            "SELECT COUNT(*) AS leaveCount FROM leaves WHERE userId = ? AND date = ?",
+            [userId, date]
         );
 
-        if (existingLeave[0].leaveCount > 0) {
-            res.status(400).json({ message: "You have already submitted a leave request for today." });
+        if (existingLeave.length > 0 && existingLeave[0].leaveCount > 0) {
+            res.status(400).json({ message: "You have already submitted a leave request for this date." });
             return;
         }
 
         const query = `
-            INSERT INTO attendance (userId, date, day, attendanceStatus, leaveReason, leaveApprovalStatus)
-            VALUES (?, ?, DAYNAME(?), 'Leave', ?, 'Pending')
+            INSERT INTO leaves (userId, date, leaveSubject, LeaveReason)
+            VALUES (?, ?, ?, ?)
         `;
 
-        const values = [userId, date, date, leaveReason];
+        const values = [userId, date, leaveSubject, leaveReason];
 
         const [result]: any = await pool.query(query, values);
 
-        // ✅ Fetch updated leave records
         const [updatedLeaves]: any = await pool.query(
-            "SELECT * FROM attendance WHERE userId = ? ORDER BY date DESC",
+            "SELECT * FROM leaves WHERE userId = ? ORDER BY date DESC",
             [userId]
         );
 
@@ -1066,20 +1064,16 @@ export const addLeave = async (req: Request, res: Response): Promise<void> => {
 
 
 
+
 export const authorizeLeaves = async (req: Request, res: Response): Promise<void> => {
     try {
-        // ✅ Get leave request ID from URL params
         const userId = req.params.id;
-        console.log(userId);
-        // ✅ Get updated fields from request body
-        const { attendanceStatus, date, leaveReason, leaveApprovalStatus } = req.body;
+        const { leaveSubject, date, leaveReason, leaveStatus } = req.body;
 
-        console.log("Updating Leave Request:", userId, attendanceStatus, date, leaveReason, leaveApprovalStatus);
+        console.log("Updating Leave Request:", userId, leaveSubject, date, leaveReason, leaveStatus);
 
-
-        // ✅ Check if the leave request exists
         const [existingLeave]: any = await pool.query(
-            "SELECT * FROM attendance WHERE userId = ?",
+            "SELECT * FROM leaves WHERE userId = ?",
             [userId]
         );
 
@@ -1088,27 +1082,36 @@ export const authorizeLeaves = async (req: Request, res: Response): Promise<void
             return;
         }
 
-        // ✅ SQL Query to Update Leave Request
         const query = `
-            UPDATE attendance
-            SET attendanceStatus = ?, date = ?, leaveReason = ?, leaveApprovalStatus = ?
+            UPDATE leaves
+            SET leaveSubject = ?, date = ?, leaveReason = ?, leaveStatus = ?
             WHERE userId = ?
         `;
 
-        const values = [attendanceStatus, date, leaveReason, leaveApprovalStatus, userId];
+        await pool.query(query, [leaveSubject, date, leaveReason, leaveStatus, userId]);
 
-        // ✅ Execute the update query
-        const [result]: any = await pool.query(query, values);
-
-        const [leaveStatus]: any = await pool.query(
-            "SELECT * FROM attendance WHERE userId = ?",
+        const [checkStatus]: any = await pool.query(
+            "SELECT leaveStatus FROM leaves WHERE leaveStatus = 'Approved' AND userId = ?",
             [userId]
         );
 
-        // ✅ Send success response
-        res.status(200).json({
-            message: `Leave request ${userId} has been updated successfully.`,
-            ...leaveStatus[0]
+        if (checkStatus.length === 0) {
+            console.log("❌ No approved leave found, skipping attendance update.");
+            return;
+        }
+
+        const [updateAttendance]: any = await pool.query(
+            "UPDATE attendance SET attendanceStatus = 'Leave', leaveApprovalStatus = 'Approved' WHERE userId = ? ORDER BY date DESC LIMIT 1",
+            [userId]
+        );
+
+        const [updatedRow]: any = await pool.query(
+            "SELECT * FROM leaves ORDER BY date DESC LIMIT 1"
+        );
+
+        res.status(200).send({
+            message: "Leave Updated Successfully!",
+            ...updatedRow[0]
         });
 
     } catch (error) {
@@ -1116,6 +1119,7 @@ export const authorizeLeaves = async (req: Request, res: Response): Promise<void
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
+
 
 export const configHolidays = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -1439,7 +1443,7 @@ export const getProjects = async (req: Request, res: Response): Promise<void> =>
 export const alterProjectInfo = async (req: Request, res: Response): Promise<void> => {
     try {
         const id = req.params.id;
-        const { projectName, projectCategory, startDate, endDate } = req.body;
+        const { projectName, projectCategory, description, startDate, endDate } = req.body;
 
         // ✅ Ensure required fields are provided
         if (!projectName || !projectCategory || !startDate || !endDate) {
@@ -1461,7 +1465,7 @@ export const alterProjectInfo = async (req: Request, res: Response): Promise<voi
         // ✅ Update project details
         const updateQuery = `
             UPDATE projects 
-            SET projectName = ?, projectCategory = ?, startDate = ?, endDate = ?
+            SET projectName = ?, projectCategory = ?, description = ?,  startDate = ?, endDate = ?
             WHERE id = ?
         `;
         const values = [projectName, projectCategory, startDate, endDate, id];
@@ -1591,26 +1595,8 @@ export const assignProject = async (req: Request, res: Response): Promise<void> 
 
 export const alterAssignProject = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { id } = req.params;  // ✅ Assignment ID from URL
-        const { name, projectName } = req.body; // ✅ New employee & project names
+        const { employeeId, projectId, id } = req.params;  // ✅ Assignment ID from URL
 
-        // ✅ Get Employee ID from login table
-        const [user]: any = await pool.query("SELECT id FROM login WHERE name = ?", [name]);
-        if (user.length === 0) {
-            res.status(404).json({ message: "User not found!" });
-            return;
-        }
-        const newEmployeeId = user[0].id;
-
-        // ✅ Get Project ID from projects table
-        const [project]: any = await pool.query("SELECT id FROM projects WHERE projectName = ?", [projectName]);
-        if (project.length === 0) {
-            res.status(404).json({ message: "Project not found!" });
-            return;
-        }
-        const newProjectId = project[0].id;
-
-        console.log("Updating Assigned Project ID:", id, "New Employee ID:", newEmployeeId, "New Project ID:", newProjectId);
 
         // ✅ Update the assigned project
         const query = `
@@ -1618,7 +1604,7 @@ export const alterAssignProject = async (req: Request, res: Response): Promise<v
             SET employeeId = ?, projectId = ?, date = CURDATE()
             WHERE id = ?;
         `;
-        const values = [newEmployeeId, newProjectId, id];
+        const values = [employeeId, projectId, id];
 
         const [result]: any = await pool.query(query, values);
 
@@ -1633,10 +1619,9 @@ export const alterAssignProject = async (req: Request, res: Response): Promise<v
             FROM assignedprojects ap
             JOIN login l ON ap.employeeId = l.id
             JOIN projects p ON ap.projectId = p.id
-            WHERE ap.id = ?;
-        `, [id]);
+            WHERE ap.id = ? order by date desc`
+            , [id]);
 
-        // ✅ Send success response
         res.status(200).json({
             message: "Project assignment updated successfully!",
             ...updatedAssignment[0]
@@ -1767,33 +1752,23 @@ export const createTodo = async (req: Request, res: Response): Promise<void> => 
 
 export const alterTodo = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { id } = req.params;  // ✅ Get Todo ID from URL
-        const { name, task, note, startDate, endDate, deadline } = req.body;
+        const { employeeId, id } = req.params; 
+        const { task, note, startDate, endDate, deadline } = req.body;
 
-        // ✅ Get Employee ID from login table
-        const [user]: any = await pool.query("SELECT id FROM login WHERE name = ?", [name]);
-        if (user.length === 0) {
-            res.status(404).json({ message: "User not found!" });
-            return;
-        }
-        const employeeId = user[0].id;
+        console.log("emplID:",employeeId,  "ID:",  id);
 
-        console.log("Updating Todo ID:", id, "Employee ID:", employeeId);
-
-        // ✅ Check if Todo exists
-        const [existingTodo]: any = await pool.query("SELECT * FROM todo WHERE id = ? AND employeeId = ?", [id, employeeId]);
+        const [existingTodo]: any = await pool.query("SELECT * FROM todo WHERE id = ?", [id]);
         if (existingTodo.length === 0) {
-            res.status(404).json({ message: "Todo not found or unauthorized access!" });
+            res.status(404).json({ message: "Todo not found!" });
             return;
         }
 
-        // ✅ Update the Todo
         const query = `
             UPDATE todo 
-            SET task = ?, note = ?, startDate = ?, endDate = ?, deadline = ?
-            WHERE id = ? AND employeeId = ?;
+            SET employeeId = ?, task = ?, note = ?, startDate = ?, endDate = ?, deadline = ?
+            WHERE id = ?
         `;
-        const values = [task, note, startDate, endDate, deadline, id, employeeId];
+        const values = [employeeId, task, note, startDate, endDate, deadline, id];
 
         const [result]: any = await pool.query(query, values);
 
@@ -1807,13 +1782,13 @@ export const alterTodo = async (req: Request, res: Response): Promise<void> => {
             SELECT t.id, l.name AS employeeName, t.task, t.note, t.startDate, t.endDate, t.deadline
             FROM todo t 
             JOIN login l ON l.id = t.employeeId
-            WHERE t.id = ?;
-        `, [id]);
+            WHERE t.id = ? order by date desc`
+            , [id]);
 
         // ✅ Send success response
         res.status(200).json({
             message: "Todo updated successfully!",
-            updatedTodo: updatedTodo[0]
+            ...updatedTodo[0]
         });
 
     } catch (error) {
@@ -1939,36 +1914,20 @@ export const addProgress = async (req: Request, res: Response): Promise<void> =>
 // alterProgress (Update Progress by ID)
 export const alterProgress = async (req: Request, res: Response): Promise<void> => {
     try {
-        const id = req.params.id;
-        const { name, projectName, date, note } = req.body;
+        const { employeeId, projectId, id } = req.params;
+        const { date, note } = req.body;
 
-        const [user]:any = await pool.query(`select id from login where name = ?`, [name]);
-        if (user.length === 0) {
-        res.status(404).json({ message: "User not found!" });
-        return;
-        }
-        const userID = user[0].id;
-
-        const [project]:any = await pool.query(`select id from projects where projectName = ?`, projectName);
-        if (project.length === 0) {
-        res.status(404).json({ message: "User not found!" });
-        return;
-        }
-        const projectID = project[0].id;
-
-        // Check if progress entry exists
-        const [progress]: any = await pool.query(`SELECT * FROM progress WHERE id = ?`, [id]);
-        if (progress.length === 0) {
-            res.status(404).json({ message: "Progress entry not found!" });
+        const [existingProgress]: any = await pool.query(`select * from progress where id = ?`,  [id]);
+        if(existingProgress.lenght===0){
+            res.send({message: "Progress Not Found!"})
             return;
         }
 
-        // Update the progress entry
+
         const query = `UPDATE progress SET employeeId = ?, projectId = ?, date = ?, note = ? WHERE id = ?`;
-        const values = [userID, projectID, date, note, id];
+        const values = [employeeId, projectId, date, note, id];
         await pool.query(query, values);
 
-        // Fetch updated progress
         const [updatedProgress]: any = await pool.query(
             `SELECT prg.id, prg.employeeId, prg.projectId, l.name, pro.projectName, prg.note, prg.date
              FROM progress prg
@@ -2119,26 +2078,8 @@ export const addSales = async (req: Request, res: Response): Promise<void> => {
 
 export const alterSalesData = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { id } = req.params; // Sales ID from URL parameter
-        const { customerName, projectName } = req.body;
+        const {customerId, projectId, id } = req.params; // Sales ID from URL parameter
 
-        // ✅ Fetch customer ID
-        const [customer]: any = await pool.query(`SELECT id FROM customers WHERE customerName = ?`, [customerName]);
-        if (customer.length === 0) {
-            res.status(404).json({ message: "Customer not found!" });
-            return;
-        }
-        const customerId = customer[0].id;
-
-        // ✅ Fetch project ID
-        const [project]: any = await pool.query(`SELECT id FROM projects WHERE projectName = ?`, [projectName]);
-        if (project.length === 0) {
-            res.status(404).json({ message: "Project not found!" });
-            return;
-        }
-        const projectId = project[0].id;
-
-        // ✅ Check if sales record exists
         const [existingSale]: any = await pool.query(`SELECT * FROM sales WHERE id = ?`, [id]);
 
         let result;
@@ -2147,11 +2088,7 @@ export const alterSalesData = async (req: Request, res: Response): Promise<void>
             const updateQuery = `UPDATE sales SET customerId = ?, projectId = ? WHERE id = ?`;
             result = await pool.query(updateQuery, [customerId, projectId, id]);
         }
-        // } else {
-        //     // ✅ If sale doesn't exist, insert new record
-        //     const insertQuery = `INSERT INTO sales (customerId, projectId) VALUES (?, ?)`;
-        //     result = await pool.query(insertQuery, [customerId, projectId]);
-        // }
+        
 
         // ✅ Fetch updated sales record
         const [getResult]: any = await pool.query(`
@@ -2165,7 +2102,8 @@ export const alterSalesData = async (req: Request, res: Response): Promise<void>
             FROM sales s
             JOIN customers c ON s.customerId = c.id
             JOIN projects p ON s.projectId = p.id
-            WHERE s.id = ?`, [id]);
+            WHERE s.id = ? 
+            `, [id]);
 
         res.status(200).json({
             message: existingSale.length > 0 ? "Sales record updated successfully!" : "Sales record added successfully!",
@@ -2296,13 +2234,11 @@ export const addPayment = async (req: Request, res: Response): Promise<void> => 
 
 
 
-
-
-
 export const alterPayments = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { id } = req.params; // Payment ID from URL parameters
-        const { paymentMethod, customerName, description, amount, date } = req.body; // New data
+        const { customerId, id } = req.params; 
+        const { paymentMethod, description, amount, date } = req.body; 
+        console.log("cusomterid:", customerId , " id: " , id , date, amount)
 
         // ✅ Check if the payment record exists
         const [existingPayment]: any = await pool.query(`SELECT * FROM payments WHERE id = ?`, [id]);
@@ -2312,17 +2248,7 @@ export const alterPayments = async (req: Request, res: Response): Promise<void> 
             return;
         }
 
-        // ✅ Fetch customer ID from customerName
-        const [customer]: any = await pool.query(`SELECT id FROM customers WHERE customerName = ?`, [customerName]);
 
-        if (customer.length === 0) {
-            res.status(404).json({ message: "Customer not found!" });
-            return;
-        }
-
-        const customerId = customer[0].id;
-
-        // ✅ Update payment details
         const updateQuery = `
             UPDATE payments 
             SET paymentMethod = ?, customerId = ?, description = ?, amount = ?, date = ?
@@ -2772,15 +2698,9 @@ export const deleteExpenseCategory = async (req: Request, res: Response): Promis
 // addExpense
 export const addExpense = async (req: Request, res: Response): Promise<void> => {
     try {
-    const {expenseName, expenseCategoryName, addedBy, date } = req.body;
+    const { expenseCategoryId } = req.body;
+    const {expenseName,  addedBy, date } = req.body;
 
-    const [category]:any = await pool.query(`select id from expenseCategory where CategoryName = ?`, expenseCategoryName)
-    
-    if(!category){
-        res.send({message: "no category found!"})
-    }
-
-     const expenseCategoryId = category[0].id
      
      const query = `insert into expenses (expenseName, expenseCategoryId, addedBy, date )
      values (?, ?, ?, ?)`;
@@ -2789,7 +2709,9 @@ export const addExpense = async (req: Request, res: Response): Promise<void> => 
 
     const [results]: any = await pool.query( query, values);
 
-    res.status(200).send({message: "Expense Added Successfully!"})
+    res.status(200).send({message: "Expense Added Successfully!",
+        ...results[0]
+        })
 
     } catch (error) {
         console.error("❌ Error adding expense:", error);
@@ -2802,10 +2724,9 @@ export const addExpense = async (req: Request, res: Response): Promise<void> => 
 
 export const updateExpense = async (req: Request, res: Response): Promise<void> => {
     try {
-        const id = req.params.id; // Get Expense ID from URL params
-        const { expenseName, expenseCategoryName, addedBy, date } = req.body;
+        const {expenseCategoryId, id} = req.params;
+        const { expenseName,  addedBy, date } = req.body;
 
-        // ✅ Ensure the expense exists before updating
         const [existingExpense]: any = await pool.query(
             "SELECT * FROM expenses WHERE id = ?", 
             [id]
@@ -2815,17 +2736,6 @@ export const updateExpense = async (req: Request, res: Response): Promise<void> 
             return;
         }
 
-        const [category]: any = await pool.query(
-            "SELECT id FROM expenseCategory WHERE CategoryName = ?", 
-            [expenseCategoryName]
-        );
-        if (category.length === 0) {
-            res.status(404).json({ message: "Expense category not found!" });
-            return;
-        }
-        const expenseCategoryId = category[0].id;
-
-        // ✅ Update the expense
         const updateQuery = `
             UPDATE expenses 
             SET expenseName = ?, expenseCategoryId = ?, addedBy = ?, date = ? 

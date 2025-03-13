@@ -2,6 +2,8 @@ import { Application } from "express";
 import { authenticateToken } from "../middleware/middleware";
 import { getAttendance, markAttendance, addLeave, changePassword } from "../controllers/userController";
 
+
+
 export default (app: Application): void => {
     app.post('/user/forgetPassword/:id', changePassword);
 
@@ -12,5 +14,3 @@ export default (app: Application): void => {
     // app.post("/user/addLeave",authenticateToken,  addLeave);
     app.post("/user/addLeave/:id",  addLeave);
 }
-
-
