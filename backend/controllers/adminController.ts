@@ -1184,7 +1184,7 @@ export const getHolidays = async (req: Request, res: Response): Promise<void> =>
 
 
 
-// 🛠 Withdraw Employee (POST Request)
+// Withdraw Employee
 export const withdrawEmployee = async (req: Request, res: Response): Promise<void> => {
     try {
         const id = req.params.id;
@@ -2693,15 +2693,12 @@ export const deleteExpenseCategory = async (req: Request, res: Response): Promis
 
 
 
-
-
 // addExpense
 export const addExpense = async (req: Request, res: Response): Promise<void> => {
     try {
-    const { expenseCategoryId } = req.body;
+    const { expenseCategoryId } = req.params;
     const {expenseName,  addedBy, date } = req.body;
 
-     
      const query = `insert into expenses (expenseName, expenseCategoryId, addedBy, date )
      values (?, ?, ?, ?)`;
 

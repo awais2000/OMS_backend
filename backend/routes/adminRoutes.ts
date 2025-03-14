@@ -173,7 +173,7 @@ export default (app: Application): void => {
 
     app.post('/admin/addPayment/:id',authenticateToken, isAdmin, addPayment);
 
-    app.put('/admin/alterPayments/:customerId/:id',authenticateToken, isAdmin,  alterPayments);
+    app.put('/admin/alterPayments/:customerId/:id',alterPayments);
 
     app.patch('/admin/deletePayment/:id',authenticateToken, isAdmin, deletePayment);
 
@@ -208,7 +208,7 @@ export default (app: Application): void => {
     app.post('/admin/addExpense/:expenseCategoryId', addExpense);
 
 
-    app.put('/admin/updateExpense/:categoryId/:id', updateExpense); //=====>
+    app.put('/admin/updateExpense/:expenseCategoryId/:id', updateExpense); //=====>
 
     app.patch('/admin/deleteExpense/:id', deleteExpense);
 
