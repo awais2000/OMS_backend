@@ -1224,6 +1224,55 @@ export const withdrawEmployee = async (req: Request, res: Response): Promise<voi
     }
 };
 
+
+
+
+// reActiveEmployee
+export const reActiveEmployee = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { id } = req.params; 
+        console.log("Reactivating Employee ID:", id);
+
+
+        if (!id) {
+            res.status(400).send({ message: "Please provide an ID!" });
+            return;
+        }
+
+        // ✅ Update `withdrawals` table
+        const [reActiveWithdraw]: any = await pool.query(
+            `UPDATE withdrawals SET withdrawStatus = 'N' WHERE employeeId = ?`, 
+            [id]
+        );
+
+        if (reActiveWithdraw.affectedRows === 0) {
+            res.status(404).send({ message: "No user found in withdrawals!" });
+            return;
+        }
+
+        const [reActiveUser]: any = await pool.query(
+            `UPDATE login SET loginStatus = 'Y' WHERE id = ?`, 
+            [id]
+        );
+
+        if (reActiveUser.affectedRows > 0) {
+            res.status(200).json({
+                message: "User Reactivated Successfully!",
+                userId: id
+            });
+        } else {
+            res.status(404).send({ message: "No user found in login!" });
+        }
+
+    } catch (error) {
+        console.error("❌ Error Re-activating employee:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+
+
+
 // getCategory
 export const getCategory = async (req: Request, res: Response): Promise<void> => {
     try {
