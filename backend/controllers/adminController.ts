@@ -2894,4 +2894,156 @@ export const configureSalary = async (req: Request, res: Response): Promise<void
 
 
 
+// addCalendarSession
+export const addCalendarSession = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { startingMonth } = req.body;
+
+        // ✅ Extract Year & Month
+        const [extractYear]: any = await pool.query(`SELECT YEAR(?) AS year`, [startingMonth]);
+        const year = extractYear[0]?.year;
+
+        const [extractMonth]: any = await pool.query(`SELECT MONTHNAME(?) AS month`, [startingMonth]);
+        const month = extractMonth[0]?.month;
+
+        if (!year || !month) {
+            res.status(400).json({ message: "Invalid starting month provided!" });
+            return;
+        }
+
+        // ✅ Get the last recorded session
+        const [lastSession]: any = await pool.query(
+            `SELECT id, year, month FROM calendarSession ORDER BY id DESC LIMIT 1`
+        );
+
+        if (lastSession.length > 0) {
+            const lastYear = lastSession[0]?.year;
+            const lastMonth = lastSession[0]?.month;
+
+            // ✅ If a new month is added, set the last month to 'InActive'
+            await pool.query(
+                `UPDATE calendarSession SET calendarStatus = 'InActive' WHERE year = ? AND month = ?`,
+                [lastYear, lastMonth]
+            );
+
+            // ✅ If 12 months have passed, stop the cycle
+            const [monthDiff]: any = await pool.query(
+                `SELECT TIMESTAMPDIFF(MONTH, ?, ?) AS monthsPassed`,
+                [`${lastYear}-${lastMonth}-01`, `${year}-${month}-01`]
+            );
+
+            if (monthDiff[0]?.monthsPassed >= 12) {
+                res.status(200).send({
+                    message: "Calendar cycle completed! No new session added.",
+                });
+                return;
+            }
+        }
+
+        // ✅ Insert a new entry for the new month
+        const [result]: any = await pool.query(
+            `INSERT INTO calendarSession (year, month, calendarStatus) VALUES (?, ?, 'Active')`,
+            [year, month]
+        );
+
+        res.status(200).send({
+            message: "New Session added successfully!",
+            sessionId: result.insertId,
+            year,
+            month,
+        });
+
+    } catch (error) {
+        console.error("❌ Error adding information:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+
+export const salaryCycle = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { year, month } = req.body;
+
+        // ✅ Function to Convert Month Name to Number
+        const convertToDate = (year: string, monthName: string): string | null => {
+            const monthMap: { [key: string]: string } = {
+                january: "01", february: "02", march: "03", april: "04",
+                may: "05", june: "06", july: "07", august: "08",
+                september: "09", october: "10", november: "11", december: "12"
+            };
+
+            const monthLower = monthName.toLowerCase(); // Convert to lowercase for matching
+            const monthNum = monthMap[monthLower]; // Find corresponding number
+
+            return monthNum ? `${year}-${monthNum}-01` : null; // Return YYYY-MM-DD or null
+        };
+
+        // ✅ Convert Date Format to YYYY-MM-DD
+        const cycleDate = convertToDate(year, month);
+        if (!cycleDate) {
+            res.status(400).json({ message: "Invalid month name provided!" });
+            return;
+        }
+
+        // ✅ Get all users
+        const [users]: any = await pool.query(`SELECT id FROM login`);
+        if (!users.length) {
+            res.status(404).json({ message: "No users found!" });
+            return;
+        }
+
+        // ✅ Process each user
+        for (const user of users) {
+            const userId = user.id;
+
+            // ✅ Get total salary for the user
+            const [salaryData]: any = await pool.query(
+                `SELECT total FROM configureSalaries WHERE userId = ?`, 
+                [userId]
+            );
+
+            if (!salaryData.length) {
+                console.log(`⚠️ No salary configured for user ${userId}, skipping...`);
+                continue; // Skip if salary not found
+            }
+
+            const totalAmount = salaryData[0].total;
+
+            // ✅ Check if salary already exists for this month
+            const [existingCycle]: any = await pool.query(
+                `SELECT id FROM salaryCycle WHERE userId = ? AND date = ?`, 
+                [userId, cycleDate]
+            );
+
+            if (existingCycle.length > 0) {
+                console.log(`⚠️ Salary cycle for user ${userId} in ${month}-${year} already exists, skipping...`);
+                continue; // Skip if salary is already processed for the month
+            }
+
+            // ✅ Calculate balance using MySQL stored function
+            // const [balanceData]: any = await pool.query(
+            //     `SELECT calculate_balance(?, ?) AS balance`, 
+            //     [userId, totalAmount]
+            // );
+
+            // const balance = balanceData[0]?.balance || totalAmount; // If no balance exists, set it to totalAmount
+
+            // ✅ Insert Salary Cycle Record
+            const [insertSalary]: any = await pool.query(
+                `INSERT INTO salaryCycle (userId, totalAmount, paidAmount, date) VALUES (?, ?, ?, ?)`, 
+                [userId, totalAmount, 0.00, cycleDate]
+            );
+
+            console.log(`✅ Salary cycle added for user ${userId} - ${month} ${year}`);
+        }
+
+        res.status(200).json({ message: "Salary Cycle processed successfully for all users!" });
+
+    } catch (error) {
+        console.error("❌ Error processing Salary Cycle:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+
 
