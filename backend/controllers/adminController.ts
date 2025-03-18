@@ -2408,52 +2408,79 @@ export const addQuotation = async (req: Request, res: Response): Promise<void> =
             return;
         }
 
-        const [latestInvoice]: any = await pool.query("SELECT id FROM invoiceno ORDER BY id DESC LIMIT 1");
-        let invoiceno = latestInvoice.length > 0 ? latestInvoice[0].id : 1;
+        const [id]: any = await pool.query(`select id from invoiceno`);
+        let invoiceId = id[0].id;
+        console.log(id);
 
+        // ✅ Fetch the latest invoice number
+        const [latestQuotation]: any = await pool.query("SELECT quotationNo FROM invoiceno");
+        if (latestQuotation.length===0) {
+            res.status(400).json({ message: "No invoice record found!" });
+            return;
+        }
+
+        let QuotationNo = latestQuotation[0].quotationNo;
+        let nextInvoiceNo = QuotationNo; // ✅ Corrected Invoice Increment
+        nextInvoiceNo++
+        console.log("incremented iD:", nextInvoiceNo);
         const values: any[] = [];
         let subTotal = 0;
 
+        // ✅ Process Cart Items
         for (let item of sessionData.cart) {
             const itemSubTotal = item.QTY * item.UnitPrice;
             subTotal += itemSubTotal;
-            values.push([invoiceno, item.description, item.QTY, item.UnitPrice, itemSubTotal]);
+            values.push([`QT-${QuotationNo}`, item.description, item.QTY, item.UnitPrice, itemSubTotal]);
         }
 
+        // ✅ Ensure the `invoiceno` exists before inserting into `quotationdetail`
         await pool.query(
             `INSERT INTO quotationdetail (invoiceno, description, QTY, UnitPrice, subtotal) VALUES ?`,
             [values]
         );
 
+        // ✅ Validate Customer Exists
         const [customer]: any = await pool.query("SELECT id FROM customers WHERE id = ?", [customerId]);
-        if (customer.length === 0) {
+        if (!customer.length) {
             res.status(404).json({ message: "Customer not found!" });
             return;
         }
 
+        // ✅ Calculate Total Amounts
         const totalTax = (subTotal * taxRate) / 100;
         const totalBill = subTotal + totalTax + shippingHandling;
 
+        // ✅ Insert Quotation Data
         await pool.query(
             `INSERT INTO quotation (customerId, date, subTotal, taxRate, totalTax, shippingHandling, totalBill, invoiceno)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-            [customerId, date, subTotal, taxRate, totalTax, shippingHandling, totalBill, invoiceno]
+            [customerId, date, subTotal, taxRate, totalTax, shippingHandling, totalBill, `QT-${QuotationNo}`]
         );
 
-        await pool.query("INSERT INTO invoiceno VALUES ()");
+        // ✅ Update existing invoice instead of inserting a new one
+        const [check]:any = await pool.query(
+            `UPDATE invoiceno SET quotationNo = ? WHERE id = ?`, 
+            [nextInvoiceNo, invoiceId ]
+        );
+        console.log("newinvoice: " , nextInvoiceNo , "QuotationNo: " , invoiceId)
 
-        const getSavedData = await pool.query(`SELECT q.customerId, c.customerName, c.customerAddress, c.customerContact, 
+        // ✅ Fetch Updated Quotation Data
+        const [getSavedData]: any = await pool.query(
+            `SELECT q.customerId, c.customerName, c.customerAddress, c.customerContact, 
             q.date, q.subTotal, q.taxRate, q.shippingHandling, q.totalBill, q.invoiceno, i.quotationNo
             FROM quotation q 
             JOIN customers c ON q.customerId = c.id
             JOIN invoiceno i ON i.id = q.invoiceno
-            WHERE quotationStatus = 'Y'`);
+            WHERE quotationStatus = 'Y'`
+        );
 
+        // ✅ Clear Session Cart
         sessionData.cart = [];
 
         res.status(200).json({
             message: "Quotation finalized successfully!",
-            ...getSavedData[0]
+            ...getSavedData[0],
+            ...check
         });
 
     } catch (error) {
@@ -2461,6 +2488,8 @@ export const addQuotation = async (req: Request, res: Response): Promise<void> =
         res.status(500).json({ message: "Internal Server Error!" });
     }
 };
+
+
 
 
 
@@ -3028,3 +3057,122 @@ export const salaryCycle = async (req: Request, res: Response): Promise<void> =>
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
+
+
+
+// getTimeConfigured
+export const getTimeConfigured = async (req: Request, res: Response): Promise<void> => {
+       try {
+        const [query]: any = await pool.query(`select * from configuretime status = 'Y'`);
+        if(!query){
+            res.send({message: "No Entry Found!"})
+            return;
+        } 
+
+        res.status(200).send([
+            "Configured Time Fetched Successfully!",
+            ...query
+        ])
+       } catch (error) {
+        console.error("❌ Error Fetching Time:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+       }
+}
+
+
+
+
+export const configureTime = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const {configureType ,configureTime} = req.body;
+
+        if(!configureType || !configureTime){
+            res.send({message: "Please provide all the fields!"});
+            return;
+        }
+
+        const  [query]: any = await pool.query(`insert into configuretime (configureType, configureTime)
+            values (?, ?)`, [configureType, configureTime]);
+
+            const [getEnty]:any  = await pool.query(`select * from configuretime order by configureTime desc`);
+
+        res.status(200).send({message: "time configured successfully!",
+            ...getEnty[0]
+        })
+    } catch (error) {
+        console.error("❌ Error configuring time:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+}
+
+
+
+
+// updateTime
+export const updateTime = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const id = req.params.id;
+        const {configureType, configureTime}  = req.body;
+        if(!configureType || !configureTime){
+            res.send({message: "Please provide all the fields!"});
+            return;
+        }
+
+        const [checkExisting]: any = await pool.query(`select * from configuretime where id = ?` , [id]);
+        if(checkExisting.lenght===0){
+            res.send({message: "No record found!"})
+        }
+
+        const [getEnty]:any = await pool.query("select * from configuretime where id = ? ", [id]);
+
+        const [query]:any  = await pool.query(`update configuretime set configureType = ? , configureTime  = ? where id = ?`, [configureType, configureTime, id]);
+        res.status(200).send({message: "time updated successfully!",
+            ...getEnty[0]
+        })
+
+    } catch (error) {
+        console.error("❌ Error updating time:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+}
+
+
+
+
+export const deleteTime = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const id = req.params.id;
+        if(!id){
+            res.send({message: "No Entry found for this Id!"})
+            return;
+        }
+
+        const [query]: any = await pool.query(`update configuretime set status = 'N' where id = ?`, [id]);
+
+        res.status(200).send({message: "Success deleting the entry!",
+            ...query[0]
+        })
+    } catch (error) {
+        console.error("❌ Error deleting time:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+}
+
+
+
+
+export const withdrawSalary = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const id = req.params.id;
+        const {paymentMethod, withdrawAmount, paidBy} = req.body;
+
+        if(!id || !paymentMethod || !withdrawAmount || !paidBy){
+            res.send({message: "Enter all feilds!"})
+            return;
+        }
+    } catch (error) {
+        
+    }
+}
+
+
