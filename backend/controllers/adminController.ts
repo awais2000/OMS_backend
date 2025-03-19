@@ -3037,9 +3037,11 @@ export const salaryCycle = async (req: Request, res: Response): Promise<void> =>
                 continue;
             }
 
+            const balance  = totalAmount +  0.00;
+
             await pool.query(
-                `INSERT INTO salaryCycle (userId, totalAmount, paidAmount, date) VALUES (?, ?, ?, ?)`, 
-                [userId, totalAmount, 0.00, cycleDate]
+                `INSERT INTO salaryCycle (userId, totalAmount, paidAmount, balance, date) VALUES (?, ?, ?, ?, ?)`, 
+                [userId, totalAmount, 0.00, balance, cycleDate]
             );
 
             console.log(`Salary cycle added for user ${userId} - ${month} ${year}`);
@@ -3170,8 +3172,19 @@ export const withdrawSalary = async (req: Request, res: Response): Promise<void>
             res.send({message: "Enter all feilds!"})
             return;
         }
+
+        const [totalAmount]: any = await pool.query(`select balance from salaryCycle where userId  = ? `, [id]);
+        const balance =  totalAmount[0].balance;
+
+        const remainingAmount =  balance - withdrawAmount;
+
+        const [query]:any  = await pool.query(`update salaryCycle set balance = ?, paymentMethod = ?, withdrawAmount = ?, paidBy = ?  where id = ?`, [remainingAmount, paymentMethod, withdrawAmount, paidBy, id]);
+        res.status(200).send({message:"Success!",
+            ...query[0]
+        });
     } catch (error) {
-        
+        console.error("❌ Error in taking Withdraw:", error);
+        res.status(500).json({ message: "Internal Server Error" });
     }
 }
 
