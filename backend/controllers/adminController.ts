@@ -3169,30 +3169,101 @@ export const withdrawSalary = async (req: Request, res: Response): Promise<void>
         const id = req.params.id;
         const {paymentMethod, withdrawAmount, paidBy} = req.body;
 
+        const [invoice]:any  = await pool.query(`select employeeInvoice  from invoiceno`);
+        let  newInvoice = invoice[0].employeeInvoice;
+        console.log(newInvoice)
+        if(!newInvoice){
+            newInvoice = 1;
+        }
+        let invoiceNo  = newInvoice;
+        invoiceNo ++;
+        let invoiceid = invoice[0].id;
+
         if(!id || !paymentMethod || !withdrawAmount || !paidBy){
             res.send({message: "Enter all feilds!"})
             return;
         }
 
-        const [totalAmount]: any = await pool.query(`select balance,  withdrawAmount from salaryCycle where userId  = ? `, [id]);
+        const [totalAmount]: any = await pool.query(`select * from salaryCycle where userId  = ? `, [id]);
         const balance =  totalAmount[0].balance;
         const calculateWithdraw = totalAmount[0].withdrawAmount;
         const totalWithdrawAmount: Number = parseInt(calculateWithdraw) + parseInt(withdrawAmount);
-        
-        const remainingAmount =  balance - withdrawAmount;
-        if(remainingAmount<0){
-            res.send({message: `You are ${remainingAmount} short, enter valid amount for withdraw!`})
-            return;
-        }
+        let getTotalAmount = totalAmount[0].totalAmount;
+        let getPaidAmount = totalAmount[0].paidAmount;
+        let date  = totalAmount[0].date;
 
-        const [query]:any  = await pool.query(`update salaryCycle set balance = ?, paymentMethod = ?, withdrawAmount = ?, paidBy = ?  where userId = ?`, [remainingAmount, paymentMethod, totalWithdrawAmount, paidBy, id]);
-        res.status(200).send({message:"Success!",
-            ...query[0]
-        });
+        const remainingAmount =  balance - withdrawAmount;
+        const [query]:any  = await pool.query(`insert into salaryCycle (userId, totalAmount, paidAmount, date, balance, paymentMethod, withdrawAmount, paidBy, invoiceId) values (?, ?, ?, ?, ?, ? ,?, ?, ?)`,  [id, getTotalAmount, getPaidAmount, date,  remainingAmount, paymentMethod, totalWithdrawAmount, paidBy, `WD${newInvoice}`]);
+
+        const [updateInvoice]:any = await pool.query(`update invoiceno set employeeInvoice = ?  where id = ?`, [invoiceNo, invoiceid]);
+
+        res.status(200).send({
+        message: `Success!${remainingAmount < 0 ? ` Your Loan: ${Math.abs(remainingAmount)}` : ''}`,
+        ...query // Ensure `query` is spread correctly (not `query[0]`)
+});
     } catch (error) {
         console.error("❌ Error in taking Withdraw:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 }
 
+
+
+export const refundAmount = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const id = req.params.id;
+        const { paymentMethod, refundAmount, depositedBy } = req.body;
+
+        if (!paymentMethod || !refundAmount || !depositedBy) {
+            res.status(400).send({ message: "Enter Required Fields to Continue!" });
+            return;
+        }
+
+        console.log(paymentMethod, refundAmount, depositedBy);
+
+        const [latestEntry]: any = await pool.query(
+            `SELECT balance, refundAmount, totalAmount, paidAmount, date 
+             FROM salaryCycle 
+             WHERE userId = ? 
+             ORDER BY id DESC 
+             LIMIT 1`, 
+            [id]
+        );
+
+        let previousBalance = 0;
+        let previousRefundAmount = 0;
+        let getTotalAmount = 0;
+        let getPaidAmount = 0;
+        let date = new Date();
+
+        if (latestEntry.length > 0) {
+            previousBalance = Number(latestEntry[0].balance) || 0;
+            previousRefundAmount = Number(latestEntry[0].refundAmount) || 0;
+            getTotalAmount = latestEntry[0].totalAmount;
+            getPaidAmount = latestEntry[0].paidAmount;
+            date = latestEntry[0].date;
+        }
+
+        const refundAmountNum = Number(refundAmount) || 0;
+        const newBalance = previousBalance + refundAmountNum;
+        const refundAmountSum = previousRefundAmount + refundAmountNum;
+
+        console.log("Previous Refund:", previousRefundAmount, "New Refund:", refundAmountNum, "Total Refund:", refundAmountSum);
+
+        const [query]: any = await pool.query(
+            `INSERT INTO salaryCycle (userId, totalAmount, paidAmount, date, balance, paymentMethod, refundAmount, depositedBy) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,  
+            [id, getTotalAmount, getPaidAmount, date, newBalance, paymentMethod, refundAmountSum, depositedBy]
+        );
+
+        res.status(200).send({
+            message: `Success! Refund of ${refundAmountNum} added. New balance: ${newBalance}`,
+            transactionId: query.insertId
+        });
+
+    } catch (error) {
+        console.error("❌ Error in Refunding Amount:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
 
