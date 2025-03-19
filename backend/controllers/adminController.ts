@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import fs from "fs";
 import path from "path";
+import { captureRejections } from "stream";
 
   
 
@@ -3173,12 +3174,18 @@ export const withdrawSalary = async (req: Request, res: Response): Promise<void>
             return;
         }
 
-        const [totalAmount]: any = await pool.query(`select balance from salaryCycle where userId  = ? `, [id]);
+        const [totalAmount]: any = await pool.query(`select balance,  withdrawAmount from salaryCycle where userId  = ? `, [id]);
         const balance =  totalAmount[0].balance;
-
+        const calculateWithdraw = totalAmount[0].withdrawAmount;
+        const totalWithdrawAmount: Number = parseInt(calculateWithdraw) + parseInt(withdrawAmount);
+        
         const remainingAmount =  balance - withdrawAmount;
+        if(remainingAmount<0){
+            res.send({message: `You are ${remainingAmount} short, enter valid amount for withdraw!`})
+            return;
+        }
 
-        const [query]:any  = await pool.query(`update salaryCycle set balance = ?, paymentMethod = ?, withdrawAmount = ?, paidBy = ?  where id = ?`, [remainingAmount, paymentMethod, withdrawAmount, paidBy, id]);
+        const [query]:any  = await pool.query(`update salaryCycle set balance = ?, paymentMethod = ?, withdrawAmount = ?, paidBy = ?  where userId = ?`, [remainingAmount, paymentMethod, totalWithdrawAmount, paidBy, id]);
         res.status(200).send({message:"Success!",
             ...query[0]
         });

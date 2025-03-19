@@ -207,7 +207,7 @@ export default (app: Application): void => {
     app.post('/admin/addExpense/:expenseCategoryId', addExpense);
 
 
-    app.put('/admin/updateExpense/:expenseCategoryId/:id', updateExpense); //=====>
+    app.put('/admin/updateExpense/:expenseCategoryId/:id', updateExpense); 
 
     app.patch('/admin/deleteExpense/:id', deleteExpense);
 
@@ -220,7 +220,7 @@ export default (app: Application): void => {
 
   app.post('/admin/addCalendarSession', addCalendarSession);
 
-  app.post('/admin/salaryCycle', salaryCycle);
+  app.post('/admin/salaryCycle', salaryCycle); //=====>
 
 
   //configureTime:
