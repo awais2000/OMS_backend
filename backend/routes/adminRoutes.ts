@@ -1,5 +1,5 @@
 import { Application } from "express";
-import { getAllUsers, login, addUser, forgetPassword, updateUser, deleteUser, getAllCustomer, addCustomerInfo, updateCustomer, deleteCustomer, getAttendance, addAttendance, updateAttendance, deleteAttendance, addLeave, getUsersLeaves, authorizeLeaves, configHolidays, getHolidays, withdrawEmployee, createCatagory, addProject, alterCategory, deleteCategory, alterProjectInfo, deleteProject,  getProjects, assignProject, getAssignProject, alterAssignProject, deleteAssignment, createTodo, alterTodo, deleteTodo, getTodo, addProgress, alterProgress, deleteProgress, getProgress, addSales, alterSalesData, deleteSale, addPayment, getSales, alterPayments, deletePayment, getPayments, uploadedFile, getuploadfile, getCategory, markAttendance, getTimings, attendanceSummary, addQuotationDetail, addQuotation, getQuotations, updateQuotation, deleteQuotation, getExpenseCategory, createExpenseCatagory, alterExpenseCategory, deleteExpenseCategory, addExpense, updateExpense, deleteExpense, getAllAttendances, configureSalary, changePassword, getSalaryInfo, reActiveEmployee, addCalendarSession, salaryCycle, configureTime, updateTime, getTimeConfigured, deleteTime, withdrawSalary, refundAmount} from "../controllers/adminController";
+import { getAllUsers, login, addUser, forgetPassword, updateUser, deleteUser, getAllCustomer, addCustomerInfo, updateCustomer, deleteCustomer, getAttendance, addAttendance, updateAttendance, deleteAttendance, addLeave, getUsersLeaves, authorizeLeaves, configHolidays, getHolidays, withdrawEmployee, createCatagory, addProject, alterCategory, deleteCategory, alterProjectInfo, deleteProject,  getProjects, assignProject, getAssignProject, alterAssignProject, deleteAssignment, createTodo, alterTodo, deleteTodo, getTodo, addProgress, alterProgress, deleteProgress, getProgress, addSales, alterSalesData, deleteSale, addPayment, getSales, alterPayments, deletePayment, getPayments, uploadedFile, getuploadfile, getCategory, markAttendance, getTimings, attendanceSummary, addQuotationDetail, addQuotation, getQuotations, updateQuotation, deleteQuotation, getExpenseCategory, createExpenseCatagory, alterExpenseCategory, deleteExpenseCategory, addExpense, updateExpense, deleteExpense, getAllAttendances, configureSalary, changePassword, getSalaryInfo, reActiveEmployee, addCalendarSession, salaryCycle, configureTime, updateTime, getTimeConfigured, deleteTime, withdrawSalary, refundAmount, updateHoliday, deleteHoliday} from "../controllers/adminController";
 import { authenticateToken, isAdmin } from "../middleware/middleware";
 import { upload } from "../middleware/uploadMiddleware"; 
 // import  path  from 'path';
@@ -81,11 +81,15 @@ export default (app: Application): void => {
 
 
 
-    app.get('/admin/getHolidays/:entry', authenticateToken, isAdmin, getHolidays);
-    // app.get('/admin/getHolidays/:entry', getHolidays);
+    // app.get('/admin/getHolidays/:entry', authenticateToken, isAdmin, getHolidays);
+    app.get('/admin/getHolidays/:entry', getHolidays);
 
-    app.post('/admin/configHolidays', authenticateToken, isAdmin, configHolidays);
-    // app.post('/admin/configHolidays', configHolidays);
+    // app.post('/admin/configHolidays', authenticateToken, isAdmin, configHolidays);
+    app.post('/admin/configHolidays', configHolidays);
+
+    app.put('/admin/updateHoliday/:id', updateHoliday);
+
+    app.patch('/admin/deleteHoliday/:id', deleteHoliday)
 
     // app.post('/admin/withdrawEmployees/:id', authenticateToken, isAdmin, withdrawEmployee);
     app.post('/admin/withdrawEmployee/:id', withdrawEmployee);

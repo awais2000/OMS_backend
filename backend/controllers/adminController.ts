@@ -1046,8 +1046,7 @@ export const addLeave = async (req: Request, res: Response): Promise<void> => {
         const [result]: any = await pool.query(query, values);
 
         const [updatedLeaves]: any = await pool.query(
-            "SELECT * FROM leaves WHERE userId = ? ORDER BY date DESC",
-            [userId]
+            `select lv.*, l.* from leaves lv join login l on l.id = lv.userId`, [userId]
         );
 
         res.status(201).json({
@@ -1139,7 +1138,11 @@ export const configHolidays = async (req: Request, res: Response): Promise<void>
         // ✅ Execute the Query
         const [result]: any = await pool.query(query, values);
 
-        const [holidays]: any = await pool.query("SELECT * FROM holidays");
+        const [holidays]: any = await pool.query(`SELECT 
+            CONVERT_TZ(date, '+00:00', @@session.time_zone) AS date, 
+            holiday
+            FROM holidays
+            order by date desc`);
 
         // ✅ Send Success Response
         res.status(201).json({
@@ -1157,12 +1160,110 @@ export const configHolidays = async (req: Request, res: Response): Promise<void>
 
 
 
+export const updateHoliday = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const id = req.params.id;
+        const { date, holiday } = req.body;
+
+        // ✅ Ensure required fields are present
+        if (!date || !holiday) {
+            res.status(400).json({ message: "Provide both date and holiday name!" });
+            return;
+        }
+
+        // ✅ Check if the holiday exists before updating
+        const [existingHoliday]: any = await pool.query(
+            "SELECT * FROM holidays WHERE id = ?", 
+            [id]
+        );
+
+        if (!existingHoliday.length) {
+            res.status(404).json({ message: "Holiday not found!" });
+            return;
+        }
+
+        // ✅ Update the holiday
+        const query = `UPDATE holidays SET date = ?, holiday = ? WHERE id = ?`;
+        const values = [date, holiday, id];
+
+        await pool.query(query, values);
+
+        // ✅ Fetch the updated holiday with correct timezone conversion
+        const [updatedHoliday]: any = await pool.query(
+            `SELECT id, holiday, CONVERT_TZ(date, '+00:00', @@session.time_zone) AS date 
+             FROM holidays 
+             WHERE id = ?`, 
+            [id]
+        );
+
+        if (!updatedHoliday.length) {
+            res.status(500).json({ message: "Error retrieving updated holiday" });
+            return;
+        }
+
+        // ✅ Use correct column name & ensure date is not NULL
+        const holidayDate = updatedHoliday[0].date ? new Date(updatedHoliday[0].date) : null;
+        const formattedDate = holidayDate ? holidayDate.toISOString().split("T")[0] : null;
+
+        // ✅ Send Success Response
+        res.status(200).json({
+            status: 200,
+            message: "Holiday updated successfully",
+            date: formattedDate,  // Corrected date format
+            holiday: updatedHoliday[0].holiday
+        });
+
+    } catch (error) {
+        console.error("❌ Error updating holiday:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+
+
+
+export const deleteHoliday = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const id = req.params.id;
+
+        // ✅ Check if the holiday exists
+        const [existingHoliday]: any = await pool.query(
+            "SELECT * FROM holidays WHERE id = ?", 
+            [id]
+        );
+
+        if (!existingHoliday.length) {
+            res.status(404).json({ message: "Holiday not found!" });
+            return;
+        }
+
+        // ✅ Perform Soft Delete (Set holidayStatus = 'N')
+        const query = `UPDATE holidays SET holidayStatus = 'N' WHERE id = ?`;
+        await pool.query(query, [id]);
+
+        // ✅ Send Success Response
+        res.status(200).json({
+            status: 200,
+            message: "Holiday deleted successfully (soft delete applied).",
+            holidayId: id
+        });
+
+    } catch (error) {
+        console.error("❌ Error deleting holiday:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+
+
+
+
 export const getHolidays = async (req: Request, res: Response): Promise<void> => {
     try {
         const entry = parseInt(req.params.entry, 10);
         console.log(entry);
         const limit = !isNaN(entry) && entry > 0 ? entry : 10;
-        const [holidays]: any = await pool.query("SELECT * FROM holidays where holidayStatus= 'Y' LIMIT ? ", [limit]);
+        const [holidays]: any = await pool.query("SELECT id, CONVERT_TZ(date, '+00:00', @@session.time_zone) AS date, holiday FROM holidays where holidayStatus= 'Y' LIMIT ? ", [limit]);
 
         // ✅ Check if customers exist
         if (holidays.length === 0) {
@@ -1171,11 +1272,7 @@ export const getHolidays = async (req: Request, res: Response): Promise<void> =>
         }
 
         // ✅ Send response with customer data
-        res.status(200).json({
-            status: 200,
-            message: "holidays fetched successfully",
-            ...holidays
-        });
+        res.status(200).json(holidays);
     } catch (error) {
         console.error("❌ Error fetching holidays:", error);
         res.status(500).json({ status: 500, message: "Internal Server Error" });
@@ -3167,45 +3264,63 @@ export const deleteTime = async (req: Request, res: Response): Promise<void> => 
 export const withdrawSalary = async (req: Request, res: Response): Promise<void> => {
     try {
         const id = req.params.id;
-        const {paymentMethod, withdrawAmount, paidBy} = req.body;
+        const { paymentMethod, withdrawAmount, paidBy } = req.body;
 
-        const [invoice]:any  = await pool.query(`select employeeInvoice  from invoiceno`);
-        let  newInvoice = invoice[0].employeeInvoice;
-        console.log(newInvoice)
-        if(!newInvoice){
-            newInvoice = 1;
-        }
-        let invoiceNo  = newInvoice;
-        invoiceNo ++;
-        let invoiceid = invoice[0].id;
+        // Fetch latest invoice number
+        const [invoice]: any = await pool.query(`SELECT employeeInvoice, id FROM invoiceno ORDER BY id DESC LIMIT 1`);
+        let newInvoice = invoice.length > 0 ? invoice[0].employeeInvoice : 0;
+        let invoiceId = invoice.length > 0 ? invoice[0].id : null;
+        
+        newInvoice++; // Increment invoice number
 
-        if(!id || !paymentMethod || !withdrawAmount || !paidBy){
-            res.send({message: "Enter all feilds!"})
+        if (!id || !paymentMethod || !withdrawAmount || !paidBy) {
+            res.status(400).send({ message: "Enter all fields!" });
             return;
         }
 
-        const [totalAmount]: any = await pool.query(`select * from salaryCycle where userId  = ? `, [id]);
-        const balance =  totalAmount[0].balance;
-        const calculateWithdraw = totalAmount[0].withdrawAmount;
-        const totalWithdrawAmount: Number = parseInt(calculateWithdraw) + parseInt(withdrawAmount);
+        // Fetch the latest balance (instead of using an outdated one)
+        const [totalAmount]: any = await pool.query(
+            `SELECT * FROM salaryCycle WHERE userId = ? ORDER BY id DESC LIMIT 1`, 
+            [id]
+        );
+
+        if (!totalAmount.length) {
+            res.status(404).send({ message: "User not found!" });
+            return;
+        }
+
+        let balance = Number(totalAmount[0].balance);
+        let calculateWithdraw = Number(totalAmount[0].withdrawAmount);
+        let totalWithdrawAmount = calculateWithdraw + Number(withdrawAmount);
         let getTotalAmount = totalAmount[0].totalAmount;
         let getPaidAmount = totalAmount[0].paidAmount;
-        let date  = totalAmount[0].date;
+        let date = totalAmount[0].date;
 
-        const remainingAmount =  balance - withdrawAmount;
-        const [query]:any  = await pool.query(`insert into salaryCycle (userId, totalAmount, paidAmount, date, balance, paymentMethod, withdrawAmount, paidBy, invoiceId) values (?, ?, ?, ?, ?, ? ,?, ?, ?)`,  [id, getTotalAmount, getPaidAmount, date,  remainingAmount, paymentMethod, totalWithdrawAmount, paidBy, `WD${newInvoice}`]);
+        const remainingAmount = balance - withdrawAmount;
 
-        const [updateInvoice]:any = await pool.query(`update invoiceno set employeeInvoice = ?  where id = ?`, [invoiceNo, invoiceid]);
+        // Insert new withdrawal record
+        const [query]: any = await pool.query(
+            `INSERT INTO salaryCycle (userId, totalAmount, paidAmount, date, balance, paymentMethod, withdrawAmount, paidBy, invoiceId) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,  
+            [id, getTotalAmount, getPaidAmount, date, remainingAmount, paymentMethod, totalWithdrawAmount, paidBy, `WD-${newInvoice}`]
+        );
+
+        // Update invoice number
+        if (invoiceId !== null) {
+            await pool.query(`UPDATE invoiceno SET employeeInvoice = ? WHERE id = ?`, [newInvoice, invoiceId]);
+        }
 
         res.status(200).send({
-        message: `Success!${remainingAmount < 0 ? ` Your Loan: ${Math.abs(remainingAmount)}` : ''}`,
-        ...query // Ensure `query` is spread correctly (not `query[0]`)
-});
+            message: `Success!${remainingAmount < 0 ? ` Your Loan: ${Math.abs(remainingAmount)}` : ''}`,
+            transactionId: query.insertId
+        });
+
     } catch (error) {
         console.error("❌ Error in taking Withdraw:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
-}
+};
+
 
 
 
@@ -3214,13 +3329,24 @@ export const refundAmount = async (req: Request, res: Response): Promise<void> =
         const id = req.params.id;
         const { paymentMethod, refundAmount, depositedBy } = req.body;
 
-        if (!paymentMethod || !refundAmount || !depositedBy) {
+        if ( !paymentMethod || !refundAmount || !depositedBy) {
             res.status(400).send({ message: "Enter Required Fields to Continue!" });
             return;
         }
 
         console.log(paymentMethod, refundAmount, depositedBy);
 
+        // Fetch latest invoice number
+        const [invoice]: any = await pool.query(
+            `SELECT employeeInvoice, id FROM invoiceno ORDER BY id DESC LIMIT 1`
+        );
+        
+        let newInvoice = invoice.length > 0 ? invoice[0].employeeInvoice : 0;
+        let invoiceId = invoice.length > 0 ? invoice[0].id : null;
+        
+        newInvoice++; // Increment invoice number
+
+        // Fetch the latest balance (instead of using an outdated one)
         const [latestEntry]: any = await pool.query(
             `SELECT balance, refundAmount, totalAmount, paidAmount, date 
              FROM salaryCycle 
@@ -3230,31 +3356,34 @@ export const refundAmount = async (req: Request, res: Response): Promise<void> =
             [id]
         );
 
-        let previousBalance = 0;
-        let previousRefundAmount = 0;
-        let getTotalAmount = 0;
-        let getPaidAmount = 0;
-        let date = new Date();
-
-        if (latestEntry.length > 0) {
-            previousBalance = Number(latestEntry[0].balance) || 0;
-            previousRefundAmount = Number(latestEntry[0].refundAmount) || 0;
-            getTotalAmount = latestEntry[0].totalAmount;
-            getPaidAmount = latestEntry[0].paidAmount;
-            date = latestEntry[0].date;
+        if (!latestEntry.length) {
+            res.status(404).send({ message: "User not found!" });
+            return;
         }
 
-        const refundAmountNum = Number(refundAmount) || 0;
+        let previousBalance = Number(latestEntry[0].balance);
+        let previousRefundAmount = Number(latestEntry[0].refundAmount);
+        let getTotalAmount = latestEntry[0].totalAmount;
+        let getPaidAmount = latestEntry[0].paidAmount;
+        let date = latestEntry[0].date;
+
+        const refundAmountNum = Number(refundAmount);
         const newBalance = previousBalance + refundAmountNum;
         const refundAmountSum = previousRefundAmount + refundAmountNum;
 
         console.log("Previous Refund:", previousRefundAmount, "New Refund:", refundAmountNum, "Total Refund:", refundAmountSum);
 
+        // Insert new refund entry
         const [query]: any = await pool.query(
-            `INSERT INTO salaryCycle (userId, totalAmount, paidAmount, date, balance, paymentMethod, refundAmount, depositedBy) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,  
-            [id, getTotalAmount, getPaidAmount, date, newBalance, paymentMethod, refundAmountSum, depositedBy]
+            `INSERT INTO salaryCycle (userId, totalAmount, paidAmount, date, balance, paymentMethod, refundAmount, depositedBy, invoiceId) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,  
+            [id, getTotalAmount, getPaidAmount, date, newBalance, paymentMethod, refundAmountSum, depositedBy, `RF-${newInvoice}`]
         );
+
+        // Update invoice number
+        if (invoiceId !== null) {
+            await pool.query(`UPDATE invoiceno SET employeeInvoice = ? WHERE id = ?`, [newInvoice, invoiceId]);
+        }
 
         res.status(200).send({
             message: `Success! Refund of ${refundAmountNum} added. New balance: ${newBalance}`,
@@ -3266,4 +3395,5 @@ export const refundAmount = async (req: Request, res: Response): Promise<void> =
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
+
 
