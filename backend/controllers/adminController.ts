@@ -75,6 +75,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
 
 
+
 export const getAllUsers = async (req: Request, res: Response): Promise<void> => {
     try {
         const entry = parseInt(req.params.entry, 10); // Convert entry to a number
@@ -1135,28 +1136,33 @@ export const configHolidays = async (req: Request, res: Response): Promise<void>
         const query = `INSERT INTO holidays (date, holiday) VALUES (?, ?)`;
         const values = [date, holiday];
 
-        // ✅ Execute the Query
-        const [result]: any = await pool.query(query, values);
+        // ✅ Execute the Insert Query
+        const [addedHoliday]:any =  await pool.query(query, values);
 
-        const [holidays]: any = await pool.query(`SELECT 
-            CONVERT_TZ(date, '+00:00', @@session.time_zone) AS date, 
-            holiday
-            FROM holidays
-            order by date desc`);
+        // ✅ Fetch the newly added holiday with correct timezone conversion
+        const [holidays]: any = await pool.query(
+            `SELECT 
+                id, 
+                DATE_FORMAT(CONVERT_TZ(date, '+00:00', @@session.time_zone), '%Y-%m-%d') AS date, 
+                holiday 
+             FROM holidays 
+             where date = ?
+             LIMIT 1`, date
+        );
 
         // ✅ Send Success Response
         res.status(201).json({
             status: 201,
             message: "Holiday added successfully",
-           ...holidays[0]
+            ...holidays[0]
         });
-        
 
     } catch (error) {
         console.error("❌ Error adding holiday:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
+
 
 
 
@@ -1260,24 +1266,25 @@ export const deleteHoliday = async (req: Request, res: Response): Promise<void> 
 
 export const getHolidays = async (req: Request, res: Response): Promise<void> => {
     try {
-        const entry = parseInt(req.params.entry, 10);
-        console.log(entry);
-        const limit = !isNaN(entry) && entry > 0 ? entry : 10;
-        const [holidays]: any = await pool.query("SELECT id, CONVERT_TZ(date, '+00:00', @@session.time_zone) AS date, holiday FROM holidays where holidayStatus= 'Y' LIMIT ? ", [limit]);
+        const [holidays]: any = await pool.query(
+            `SELECT id, DATE_FORMAT(CONVERT_TZ(date, '+00:00', @@session.time_zone), '%Y-%m-%d') AS date, holiday 
+             FROM holidays 
+             WHERE holidayStatus= 'Y' `, 
+        );
 
-        // ✅ Check if customers exist
         if (holidays.length === 0) {
             res.status(404).json({ status: 404, message: "No holidays found" });
             return;
         }
 
-        // ✅ Send response with customer data
+        // ✅ Send response as a formatted string to prevent timezone issues
         res.status(200).json(holidays);
+
     } catch (error) {
         console.error("❌ Error fetching holidays:", error);
         res.status(500).json({ status: 500, message: "Internal Server Error" });
     }
-}
+};
 
 
 
@@ -3397,3 +3404,45 @@ export const refundAmount = async (req: Request, res: Response): Promise<void> =
 };
 
 
+
+
+export const salesReport = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { from, to, customerId } = req.params; // Get filters from URL params
+
+        // ✅ Base query (fetch all sales)
+        let query = `SELECT * FROM sales WHERE salesStatus = 'Y'`;
+        let queryParams: any[] = [];
+
+        // ✅ Apply date range filter if both 'from' and 'to' are provided
+        if (from && to) {
+            query += ` AND saleDate BETWEEN ? AND ?`;
+            queryParams.push(from, to);
+        }
+
+        // ✅ Apply customer filter if 'customerId' is provided
+        if (customerId) {
+            query += ` AND customerId = ?`;
+            queryParams.push(customerId);
+        }
+
+        // ✅ Execute the query with dynamic parameters
+        const [result]: any = await pool.query(query, queryParams);
+
+        if (result.length === 0) {
+            res.status(404).json({ message: "No sales found!" });
+            return;
+        }
+
+        // ✅ Send Success Response
+        res.status(200).json({
+            status: 200,
+            message: "Sales fetched successfully!",
+            sales: result
+        });
+
+    } catch (error) {
+        console.error("❌ Error fetching sales:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
