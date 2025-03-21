@@ -1289,32 +1289,65 @@ export const getHolidays = async (req: Request, res: Response): Promise<void> =>
 
 
 
+
+// getWithdrawnEmployees
+export const getWithdrawnEmployees = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const [query]: any = await pool.query(
+            "SELECT * FROM withdrawals WHERE withdrawStatus = 'Y'"
+        );
+
+        console.log("Withdrawn Employees:", query); 
+        if (query.length === 0) {
+            res.status(404).send({ message: "No User found in Withdrawals!" });
+            return;
+        }
+
+        res.status(200).json(query);
+
+    } catch (error) {
+        console.error("❌ Error Fetching Withdrawn Employees!:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+
+
+
 // Withdraw Employee
 export const withdrawEmployee = async (req: Request, res: Response): Promise<void> => {
     try {
         const id = req.params.id;
-        const { withdrawDate, withdrawStatus, withdrawReason } = req.body;
+        const { withdrawReason } = req.body;
 
-        console.log("Withdraw Request Received:", {  withdrawDate, withdrawStatus, withdrawReason });
+        console.log("Withdraw Request Received:", { id, withdrawReason });
 
         // ✅ Ensure required fields are present
-        if (!withdrawDate || !withdrawStatus || !withdrawReason) {
+        if (!withdrawReason) {
             res.status(400).json({ message: "Provide all required fields!" });
             return;
         }
 
+        // ✅ Check if employee already exists in `withdrawals`
+        const [existingWithdrawal]: any = await pool.query(
+            "SELECT * FROM withdrawals WHERE employeeId = ?",
+            [id]
+        );
+
+        if (existingWithdrawal.length > 0) {
+            res.status(409).json({ message: "Employee is already withdrawn!" });
+            return;
+        }
+
         // ✅ Insert into `withdrawals` table
-        const insertQuery = `
-            INSERT INTO withdrawals (employeeId, withdrawDate, withdrawStatus, withdrawReason)
-            VALUES (?, ?, ?, ?)
-        `;
-        const values = [id, withdrawDate, withdrawStatus, withdrawReason];
+        const insertQuery = "INSERT INTO withdrawals (employeeId, withdrawReason) VALUES (?, ?)";
+        const values = [id, withdrawReason];
 
         // ✅ Execute query
         const [result]: any = await pool.query(insertQuery, values);
 
         // ✅ Update `status` in `login` table to 'N'
-        const updateQuery = `UPDATE login SET loginStatus = 'N' WHERE id = ?`;
+        const updateQuery = "UPDATE login SET loginStatus = 'N' WHERE id = ?";
         await pool.query(updateQuery, [id]);
 
         // ✅ Send success response
@@ -1328,6 +1361,7 @@ export const withdrawEmployee = async (req: Request, res: Response): Promise<voi
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
+
 
 
 
@@ -1346,7 +1380,7 @@ export const reActiveEmployee = async (req: Request, res: Response): Promise<voi
 
         // ✅ Update `withdrawals` table
         const [reActiveWithdraw]: any = await pool.query(
-            `UPDATE withdrawals SET withdrawStatus = 'N' WHERE employeeId = ?`, 
+            "UPDATE withdrawals SET withdrawStatus = 'N' WHERE employeeId = ?", 
             [id]
         );
 
@@ -1356,7 +1390,7 @@ export const reActiveEmployee = async (req: Request, res: Response): Promise<voi
         }
 
         const [reActiveUser]: any = await pool.query(
-            `UPDATE login SET loginStatus = 'Y' WHERE id = ?`, 
+            "UPDATE login SET loginStatus = 'Y' WHERE id = ?", 
             [id]
         );
 
@@ -1482,6 +1516,8 @@ export const alterCategory = async (req: Request, res: Response): Promise<void> 
 };
 
 
+
+
 export const deleteCategory = async (req: Request, res: Response): Promise<void> => {
     try {
         const id = req.params.id;
@@ -1574,6 +1610,7 @@ export const addProject = async (req: Request, res: Response): Promise<void> => 
 
 
 
+
 // getProjects
 export const getProjects = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -1592,6 +1629,8 @@ export const getProjects = async (req: Request, res: Response): Promise<void> =>
         res.status(500).json({ message: "Internal Server Error" });
     }
 }
+
+
 
 
 export const alterProjectInfo = async (req: Request, res: Response): Promise<void> => {
@@ -1898,7 +1937,6 @@ export const createTodo = async (req: Request, res: Response): Promise<void> => 
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
-
 
 
 
@@ -2271,6 +2309,8 @@ export const alterSalesData = async (req: Request, res: Response): Promise<void>
 };
 
 
+
+
 export const deleteSale = async (req: Request, res: Response): Promise<void> => {
     try {
         const { id } = req.params;
@@ -2309,7 +2349,6 @@ export const deleteSale = async (req: Request, res: Response): Promise<void> => 
         res.status(500).json({ message: "Internal Server Error" });
     }  
 }
-
 
 
 
@@ -3408,16 +3447,14 @@ export const refundAmount = async (req: Request, res: Response): Promise<void> =
 
 export const salesReport = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { from, to, customerId } = req.params; // Get filters from URL params
+        const { projectId, customerId } = req.params; // Get filters from URL params
 
-        // ✅ Base query (fetch all sales)
         let query = `SELECT * FROM sales WHERE salesStatus = 'Y'`;
         let queryParams: any[] = [];
 
-        // ✅ Apply date range filter if both 'from' and 'to' are provided
-        if (from && to) {
-            query += ` AND saleDate BETWEEN ? AND ?`;
-            queryParams.push(from, to);
+        if (projectId) {
+            query += ` AND projectId = ?`;
+            queryParams.push(projectId);
         }
 
         // ✅ Apply customer filter if 'customerId' is provided
@@ -3429,6 +3466,7 @@ export const salesReport = async (req: Request, res: Response): Promise<void> =>
         // ✅ Execute the query with dynamic parameters
         const [result]: any = await pool.query(query, queryParams);
 
+        // ✅ Check if results exist
         if (result.length === 0) {
             res.status(404).json({ message: "No sales found!" });
             return;
@@ -3446,3 +3484,56 @@ export const salesReport = async (req: Request, res: Response): Promise<void> =>
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
+
+
+
+
+
+export const progressReport = async (req: Request, res: Response): Promise<void> => {
+    try {
+        // ✅ Get query parameters properly
+        const filter = req.query; // Already an object, no need to await
+
+        // ✅ Base query (fetch all progress)
+        let query = `SELECT * FROM progress WHERE progressStatus = 'Y'`;
+        let queryParams: any[] = [];
+
+        // ✅ Apply filters dynamically
+        if (filter.employeeId) {
+            query += ` AND employeeId = ?`;
+            queryParams.push(filter.employeeId);
+        }
+        if (filter.projectId) {
+            query += ` AND projectId = ?`;
+            queryParams.push(filter.projectId);
+        }
+        if (filter.date) {
+            query += ` AND date = ?`;
+            queryParams.push(filter.date);
+        }
+
+        // ✅ Execute the query
+        const [result]: any = await pool.query(query, queryParams);
+
+        // ✅ Check if results exist
+        if (result.length === 0) {
+            res.status(404).json({ message: "No progress records found!" });
+            return;
+        }
+
+        // ✅ Send Success Response
+        res.status(200).json({
+            status: 200,
+            message: "Progress fetched successfully!",
+            progress: result
+        });
+
+    } catch (error) {
+        console.error("❌ Error fetching progress:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+
+
+
