@@ -196,6 +196,7 @@ export const uploadedFile = async (req: Request, res: Response): Promise<void> =
 
 
 
+
 export const addUser = async (req: Request, res: Response): Promise<void> => {
     try {
         const { name, email, password, contact, cnic, address, date, role } = req.body;
