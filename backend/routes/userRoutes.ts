@@ -1,6 +1,6 @@
 import { Application } from "express";
 import { authenticateToken } from "../middleware/middleware";
-import { getAttendance, markAttendance, addLeave, changePassword, getTodo, createTodo, alterTodo, getAssignProject, addProgress, getProgress, getUsersLeaves } from "../controllers/userController";
+import { getAttendance, markAttendance, addLeave, changePassword, getTodo, createTodo, alterTodo, getAssignProject, addProgress, getProgress, getUsersLeaves, progressReport, attendanceReport, taskReport } from "../controllers/userController";
 
 
 
@@ -33,10 +33,10 @@ export default (app: Application): void => {
 
     app.post('/user/addProgress/:employeeId/:projectId', addProgress);
 
+    //Report:
+    app.get('/user/progressReport', progressReport);
 
-    //Leave:
-    // app.post("/user/addLeave",authenticateToken,  addLeave);
-    app.get('/user/getUsersLeaves', getUsersLeaves);
+    app.get('/user/attendanceReport', attendanceReport);
 
-    app.post("/user/addLeave/:id",  addLeave);
+    app.get('/user/taskReport' , taskReport);
 }

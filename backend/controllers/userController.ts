@@ -242,7 +242,15 @@ console.log(`Final Working Hours: ${formattedWorkingHours}`);
 // getTodo
 export const getTodo = async (req: Request, res: Response): Promise<void> => {
     try {
-        const [query]:any  =await pool.query(`select * from todo where todoStatus= 'Y'`);
+        const [query]:any  =await pool.query(`SELECT t.id, l.name AS employeeName, t.task, t.note,
+            DATE_FORMAT(CONVERT_TZ(t.startDate, '+00:00', @@session.time_zone), '%Y-%m-%d') AS startDate,
+            DATE_FORMAT(CONVERT_TZ(t.endDate, '+00:00', @@session.time_zone), '%Y-%m-%d') AS endDate,
+            DATE_FORMAT(CONVERT_TZ(t.deadline, '+00:00', @@session.time_zone), '%Y-%m-%d') AS Deadline,
+             t.completionStatus,
+             t.comments
+            FROM todo t 
+            JOIN login l ON l.id = t.employeeId
+            order by date desc`);
         
         if(!query){
             res.send({messsage: "No, Todo Found!"});
@@ -583,3 +591,140 @@ export const addLeave = async (req: Request, res: Response): Promise<void> => {
 
 
 
+
+//Progress Report
+export const progressReport = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const filter = req.query; // Already an object, no need to await
+
+        let query = `SELECT 
+        id,
+        employeeId,
+        projectId,
+        DATE_FORMAT(CONVERT_TZ(date, '+00:00', @@session.time_zone), '%Y-%m-%d') AS date,
+         note,
+         progressStatus
+         FROM progress WHERE progressStatus = 'Y'`;
+        let queryParams: any[] = [];
+
+        // ✅ Apply date range filter if both 'fromDate' and 'toDate' are provided
+        if (filter.fromDate && filter.toDate) {
+            query += ` AND date BETWEEN ? AND ?`;
+            queryParams.push(filter.fromDate, filter.toDate);
+        }
+
+        const [result]: any = await pool.query(query, queryParams);
+
+        if (result.length === 0) {
+            res.status(404).json({ message: "No progress records found!" });
+            return;
+        }
+
+        res.status(200).json({
+            status: 200,
+            message: "Progress fetched successfully!",
+            progress: result
+        });
+
+    } catch (error) {
+        console.error("❌ Error fetching progress:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+
+
+
+
+//attendanceReport
+export const attendanceReport = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { userId, fromDate, toDate } = req.query;
+        let queryParams: any[] = [];
+
+        let query = `SELECT 
+                        userId, 
+                        DATE_FORMAT(CONVERT_TZ(date, '+00:00', @@session.time_zone), '%Y-%m-%d') AS date,
+                        clockIn, 
+                        clockOut, 
+                        day, 
+                        status, 
+                        attendanceStatus, 
+                        leaveApprovalStatus, 
+                        workingHours,
+                        id
+                    FROM attendance 
+                    WHERE status = 'Y'`;
+
+        if (userId) {
+            query += ` AND userId = ?`;
+            queryParams.push(userId);
+        }
+
+        if (fromDate && toDate) {
+            query += ` AND date BETWEEN ? AND ?`;
+            queryParams.push(fromDate, toDate);
+        }
+
+        query += ` ORDER BY date DESC`;
+
+        const [result]: any = await pool.query(query, queryParams);
+
+        if (result.length === 0) {
+            res.status(404).json({ status: 404, message: "No attendance records found" });
+            return;
+        }
+
+        res.status(200).json(...result);
+
+    } catch (error) {
+        console.error("❌ Error fetching attendance:", error);
+        res.status(500).json({ status: 500, message: "Internal Server Error" });
+    }
+};
+
+
+
+
+
+//taskReport
+export const taskReport = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { fromDate, toDate } = req.query; 
+
+        let query = `
+            SELECT t.id, l.name AS employeeName, t.task, t.note,
+            DATE_FORMAT(CONVERT_TZ(t.startDate, '+00:00', @@session.time_zone), '%Y-%m-%d') AS startDate,
+            DATE_FORMAT(CONVERT_TZ(t.endDate, '+00:00', @@session.time_zone), '%Y-%m-%d') AS endDate,
+            DATE_FORMAT(CONVERT_TZ(t.deadline, '+00:00', @@session.time_zone), '%Y-%m-%d') AS Deadline,
+            t.completionStatus, t.comments
+            FROM todo t 
+            JOIN login l ON l.id = t.employeeId
+            WHERE 1 = 1`;  
+
+        let queryParams: any[] = [];
+
+        if (fromDate && toDate) {
+            query += ` AND t.startDate BETWEEN ? AND ?`;
+            queryParams.push(fromDate, toDate);
+        }
+
+        query += ` ORDER BY t.startDate DESC`;  
+
+        const [result]: any = await pool.query(query, queryParams);
+
+        if (result.length === 0) {
+            res.status(404).json({ message: "No tasks found within the given date range!" });
+            return;
+        }
+
+        res.status(200).json(result);
+
+    } catch (error) {
+        console.error("❌ Error Fetching Todo!:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+
+//it ends here
