@@ -1892,7 +1892,7 @@ export const getTodo = async (req: Request, res: Response): Promise<void> => {
 // createTodo
 export const createTodo = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { id } = req.params; // ✅ Get user ID directly from URL parameters
+        const { id } = req.params;
         const { task, note, startDate, endDate, deadline } = req.body;
 
         // ✅ Validate required fields before inserting
@@ -1908,7 +1908,6 @@ export const createTodo = async (req: Request, res: Response): Promise<void> => 
             return;
         }
 
-        // ✅ Insert into `todo` table
         const query = `
             INSERT INTO todo (employeeId, task, note, startDate, endDate, deadline) 
             VALUES (?, ?, ?, ?, ?, ?)

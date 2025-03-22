@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import bcrypt from "bcrypt";
 import pool from "../database/db"; 
+import { PoolConnection } from "mysql2/typings/mysql/lib/PoolConnection";
 
 
 
@@ -107,6 +108,7 @@ export const getAttendance = async (req: Request, res: Response) => {
         res.status(500).json({ status: 500, message: "Internal Server Error" });
     }
 };
+
 
 
 
@@ -236,6 +238,296 @@ console.log(`Final Working Hours: ${formattedWorkingHours}`);
 
 
 
+
+// getTodo
+export const getTodo = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const [query]:any  =await pool.query(`select * from todo where todoStatus= 'Y'`);
+        
+        if(!query){
+            res.send({messsage: "No, Todo Found!"});
+            return;
+        }
+
+        res.status(200).send(query);
+    } catch (error) {
+        console.error("❌ Error Fetching Todo!:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+}
+
+
+
+
+
+
+//createTodo
+export const createTodo = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { id } = req.params;
+        const { task, note, startDate, endDate, deadline } = req.body;
+
+        // ✅ Validate required fields before inserting
+        if (!id || !task || !startDate || !endDate || !deadline) {
+            res.status(400).json({ message: "Missing required fields!" });
+            return;
+        }
+
+        // ✅ Check if User Exists
+        const [user]: any = await pool.query("SELECT id FROM login WHERE id = ?", [id]);
+        if (user.length === 0) {
+            res.status(404).json({ message: "User not found!" });
+            return;
+        }
+
+        const query = `
+            INSERT INTO todo (employeeId, task, note, startDate, endDate, deadline) 
+            VALUES (?, ?, ?, ?, ?, ?)
+        `;
+
+        const values = [id, task, note || null, startDate, endDate, deadline];
+        await pool.query(query, values);
+
+        // ✅ Fetch the newly created Todo
+        const [createdTodo]: any = await pool.query(
+            `SELECT t.id, l.name AS employeeName, t.task, t.note, t.startDate, t.endDate, t.deadline
+             FROM todo t 
+             JOIN login l ON l.id = t.employeeId
+             WHERE t.employeeId = ? 
+             ORDER BY t.id DESC LIMIT 1`, 
+            [id]
+        );
+
+        res.status(201).json({
+            message: "Todo added successfully!",
+            ...createdTodo[0]
+        });
+
+    } catch (error) {
+        console.error("❌ Error creating todo:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+
+
+
+
+
+// updateTodo
+export const alterTodo = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { employeeId, id } = req.params; 
+        const { task, note, startDate, endDate, deadline, completionStatus,  comments} = req.body;
+
+        console.log( "ID:",  id);
+
+        const [existingTodo]: any = await pool.query("SELECT * FROM todo WHERE id = ?", [id]);
+        if (existingTodo.length === 0) {
+            res.status(404).json({ message: "Todo not found!" });
+            return;
+        }
+
+        const query = `
+            UPDATE todo 
+            SET employeeId=?,  task = ?, note = ?, startDate = ?, endDate = ?, deadline = ?, completionStatus=?, comments = ?
+            WHERE id = ?
+        `;
+        const values = [employeeId, task, note, startDate, endDate, deadline, completionStatus, comments, id];
+
+        const [result]: any = await pool.query(query, values);
+
+        if (result.affectedRows === 0) {
+            res.status(404).json({ message: "No changes made!" });
+            return;
+        }
+
+        const [updatedTodo]: any = await pool.query(`
+            SELECT t.id, l.name AS employeeName, t.task, t.note,
+            DATE_FORMAT(CONVERT_TZ(t.startDate, '+00:00', @@session.time_zone), '%Y-%m-%d') AS startDate,
+            DATE_FORMAT(CONVERT_TZ(t.endDate, '+00:00', @@session.time_zone), '%Y-%m-%d') AS endDate,
+            DATE_FORMAT(CONVERT_TZ(t.deadline, '+00:00', @@session.time_zone), '%Y-%m-%d') AS Deadline,
+             t.completionStatus,
+             t.comments
+            FROM todo t 
+            JOIN login l ON l.id = t.employeeId
+            WHERE t.id = ? order by date desc`
+            , [id]);
+
+        res.status(200).json({
+            message: "Todo updated successfully!",
+            ...updatedTodo[0]
+        });
+
+    } catch (error) {
+        console.error("❌ Error Updating Todo:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+
+
+
+
+//get Assigned Projects:
+export const getAssignProject = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const query = `SELECT 
+        a.id, a.employeeId, a.projectId, 
+        DATE_FORMAT(CONVERT_TZ(a.date, '+00:00', @@session.time_zone), '%Y-%m-%d') AS date,
+        l.name,
+        p.projectName
+        FROM assignedprojects a 
+        JOIN login l ON a.employeeId = l.id
+        join projects p on 
+        p.id = a.projectId`;
+        const [result]:any = await pool.query(query);
+
+        res.status(200).send(result)
+    } catch (error) {
+        console.error("❌ Error Fetching Assigned Projects:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+}
+
+
+
+
+
+//getProgress
+export const getProgress = async (req: Request, res: Response): Promise<void> => {
+    try {
+        // const entry = parseInt(req.params.entry, 10);
+        // console.log(entry);
+        // const limit = !isNaN(entry) && entry > 0 ? entry : 10;
+        const query  = `SELECT prg.employeeId, prg.projectId, l.name AS employeeName, 
+             pro.projectName, prg.note, 
+             DATE_FORMAT(CONVERT_TZ(prg.date, '+00:00', @@session.time_zone), '%Y-%m-%d') AS date
+             FROM progress prg
+             JOIN login l ON l.id = prg.employeeId
+             JOIN projects pro ON prg.projectId = pro.id 
+             where progressStatus = 'Y'`;
+        const [result]:any = await pool.query(query);
+
+        if(result.length ===0){
+            res.send({message:"no users found!"})
+            return;
+        }
+
+        res.status(200).send(result)
+    } catch (error) {
+        console.error("❌ Error fetching progress:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+}
+
+
+
+
+
+//addProgress
+export const addProgress = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { employeeId, projectId } = req.params; // ✅ Get IDs directly from URL parameters
+        const { date, note } = req.body;
+
+        // ✅ Validate required fields before inserting progress
+        if (!employeeId || !projectId || !date || !note) {
+            res.status(400).json({ message: "Missing required fields!" });
+            return;
+        }
+
+        // ✅ Check if Employee Exists
+        const [user]: any = await pool.query("SELECT id FROM login WHERE id = ?", [employeeId]);
+        if (user.length === 0) {
+            res.status(404).json({ message: "User not found!" });
+            return;
+        }
+
+        // ✅ Check if Project Exists
+        const [project]: any = await pool.query("SELECT id FROM projects WHERE id = ?", [projectId]);
+        if (project.length === 0) {
+            res.status(404).json({ message: "Project not found!" });
+            return;
+        }
+
+        // ✅ Insert into `progress` table
+        const query = `
+            INSERT INTO progress (employeeId, projectId, date, note) 
+            VALUES (?, ?, ?, ?)
+        `;
+        await pool.query(query, [employeeId, projectId, date, note]);
+
+        // ✅ Fetch the newly added progress
+        const [seeProgress]: any = await pool.query(
+            `SELECT prg.employeeId, prg.projectId, l.name AS employeeName, 
+             pro.projectName, prg.note, 
+             DATE_FORMAT(CONVERT_TZ(prg.date, '+00:00', @@session.time_zone), '%Y-%m-%d') AS date
+             FROM progress prg
+             JOIN login l ON l.id = prg.employeeId
+             JOIN projects pro ON prg.projectId = pro.id
+             WHERE prg.employeeId = ? AND prg.projectId = ?
+             ORDER BY prg.date DESC LIMIT 1`, 
+            [employeeId, projectId]
+        );
+
+        res.status(201).json({
+            message: "Progress added successfully!",
+            progress: seeProgress[0]
+        });
+
+    } catch (error) {
+        console.error("❌ Error adding progress:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+
+
+
+//get Leaves:
+export const getUsersLeaves = async (req: Request, res: Response): Promise<void> => {
+    try {
+
+        // const entry = parseInt(req.params.entry, 10);
+        // console.log(entry);
+        // const limit = !isNaN(entry) && entry > 0 ? entry : 10;
+        const query = `
+            SELECT 
+                a.userId,
+                l.name AS name,
+             DATE_FORMAT(CONVERT_TZ(a.date, '+00:00', @@session.time_zone), '%Y-%m-%d') AS date,
+                a.day,
+                a.attendanceStatus,
+                a.leaveApprovalStatus
+            FROM attendance a
+            JOIN login l ON a.userId = l.id
+            where a.attendanceStatus = 'Leave'
+            ORDER BY a.date DESC 
+        `;
+
+        const [attendance]: any = await pool.query(query);
+
+        if (attendance.length === 0) {
+            res.status(404).json({ message: "No attendance records found" });
+            return;
+        }
+
+        // ✅ Send attendance records with user names
+        res.status(200).json(["Attendance records fetched successfully",
+            ...attendance
+        ]);
+
+    } catch (error) {
+        console.error("❌ Error fetching attendance:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+
+
+
+
 export const addLeave = async (req: Request, res: Response): Promise<void> => {
     try {
         const { id: userId } = req.params;
@@ -287,3 +579,7 @@ export const addLeave = async (req: Request, res: Response): Promise<void> => {
         res.status(500).json({ message: "Internal Server Error" });
     }
 };  
+
+
+
+
