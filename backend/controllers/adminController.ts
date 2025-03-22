@@ -2880,7 +2880,6 @@ export const alterExpenseCategory = async (req: Request, res: Response): Promise
 
 
 
-
 export const deleteExpenseCategory = async (req: Request, res: Response): Promise<void> => {
     try {
         const id = req.params.id;
@@ -2911,6 +2910,27 @@ export const deleteExpenseCategory = async (req: Request, res: Response): Promis
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
+
+
+
+
+// getExpense
+export const getExpense = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const query = `select * from expenses where expenseStatus = 'Y'`;
+        const [result]:any = await pool.query(query);
+
+        if(!result){
+            res.send({message:"no Expense Found!"});
+            return;
+        }
+
+        res.status(200).send(result)
+    } catch (error) {
+        console.error("❌ Error fetching expense List:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+}
 
 
 
@@ -3445,34 +3465,31 @@ export const refundAmount = async (req: Request, res: Response): Promise<void> =
 
 
 
+// salesReport
 export const salesReport = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { projectId, customerId } = req.params; // Get filters from URL params
+        const { customerId, projectId } = req.query;
 
         let query = `SELECT * FROM sales WHERE salesStatus = 'Y'`;
         let queryParams: any[] = [];
+
+        if (customerId) {
+            query += ` AND customerId = ?`;
+            queryParams.push(customerId);
+        }
 
         if (projectId) {
             query += ` AND projectId = ?`;
             queryParams.push(projectId);
         }
 
-        // ✅ Apply customer filter if 'customerId' is provided
-        if (customerId) {
-            query += ` AND customerId = ?`;
-            queryParams.push(customerId);
-        }
-
-        // ✅ Execute the query with dynamic parameters
         const [result]: any = await pool.query(query, queryParams);
 
-        // ✅ Check if results exist
         if (result.length === 0) {
             res.status(404).json({ message: "No sales found!" });
             return;
         }
 
-        // ✅ Send Success Response
         res.status(200).json({
             status: 200,
             message: "Sales fetched successfully!",
@@ -3489,16 +3506,14 @@ export const salesReport = async (req: Request, res: Response): Promise<void> =>
 
 
 
+
 export const progressReport = async (req: Request, res: Response): Promise<void> => {
     try {
-        // ✅ Get query parameters properly
         const filter = req.query; // Already an object, no need to await
 
-        // ✅ Base query (fetch all progress)
         let query = `SELECT * FROM progress WHERE progressStatus = 'Y'`;
         let queryParams: any[] = [];
 
-        // ✅ Apply filters dynamically
         if (filter.employeeId) {
             query += ` AND employeeId = ?`;
             queryParams.push(filter.employeeId);
@@ -3512,16 +3527,13 @@ export const progressReport = async (req: Request, res: Response): Promise<void>
             queryParams.push(filter.date);
         }
 
-        // ✅ Execute the query
         const [result]: any = await pool.query(query, queryParams);
 
-        // ✅ Check if results exist
         if (result.length === 0) {
             res.status(404).json({ message: "No progress records found!" });
             return;
         }
 
-        // ✅ Send Success Response
         res.status(200).json({
             status: 200,
             message: "Progress fetched successfully!",
@@ -3537,3 +3549,132 @@ export const progressReport = async (req: Request, res: Response): Promise<void>
 
 
 
+
+// attendanceReport
+export const attendanceReport = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { userId, date, day, fromDate, toDate } = req.query;
+        let queryParams: any[] = [];
+
+        let query = `SELECT 
+                        userId, 
+                        CONVERT_TZ(date, '+00:00', @@session.time_zone) AS date, 
+                        clockIn, 
+                        clockOut, 
+                        day, 
+                        status, 
+                        attendanceStatus, 
+                        leaveApprovalStatus, 
+                        workingHours,
+                        id
+                    FROM attendance 
+                    WHERE status = 'Y'`;
+
+        if (userId) {
+            query += ` AND userId = ?`;
+            queryParams.push(userId);
+        }
+        if (date) {
+            query += ` AND date = ?`;
+            queryParams.push(date);
+        }
+        if (day) {
+            query += ` AND day = ?`;
+            queryParams.push(day);
+        }
+        if (fromDate && toDate) {
+            query += ` AND date BETWEEN ? AND ?`;
+            queryParams.push(fromDate, toDate);
+        }
+
+        query += ` ORDER BY date DESC`;
+
+        const [result]: any = await pool.query(query, queryParams);
+
+        if (result.length === 0) {
+            res.status(404).json({ status: 404, message: "No attendance records found" });
+            return;
+        }
+
+        res.status(200).json(...result);
+
+    } catch (error) {
+        console.error("❌ Error fetching attendance:", error);
+        res.status(500).json({ status: 500, message: "Internal Server Error" });
+    }
+};
+
+
+
+
+
+// paymentReport
+export const paymentReport = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const {customerId, date, fromDate, toDate} = req.query; 
+        let query  = `select * from payments where paymentStatus = 'Y'`;
+        const [result]:any = await pool.query(query);
+        let queryParams: any[] = [];
+
+
+        if (customerId) {
+            query += ` AND customerId = ?`;
+            queryParams.push(customerId);
+        }
+        if (date) {
+            query += ` AND date = ?`;
+            queryParams.push(date);
+        }
+      
+        if (fromDate && toDate) {
+            query += ` AND date BETWEEN ? AND ?`;
+            queryParams.push(fromDate, toDate);
+        }
+
+
+        if(result.length ===0){
+            res.send({message:"no payments found!"})
+            return;
+        }
+
+        res.status(200).send({message:"payments fetched successfully!",
+            result
+        })
+    } catch (error) {
+        console.error("❌ Error fetching payments:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+}
+
+
+
+
+
+// expenseReport
+export const expenseReport = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const {date} = req.query;
+        let queryParams: any[] = [];
+        let query = `select * from expenses where expenseStatus = 'Y'`;
+        const [result]:any = await pool.query(query);
+
+        if(date){
+            query += ` AND date = ?`;
+            queryParams.push(date);        
+        }
+
+        if(!result){
+            res.send({message:"no Expense Found!"});
+            return;
+        }
+
+        res.status(200).send(result)
+    } catch (error) {
+        console.error("❌ Error fetching expense List:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+}
+
+
+
+//it Ends here!
