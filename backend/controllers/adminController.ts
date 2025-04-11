@@ -78,7 +78,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
 export const getAllUsers = async (req: Request, res: Response): Promise<void> => {
     try {
-        const entry = parseInt(req.params.entry, 10); // Convert entry to a number
+        const entry = parseInt(req.params.entry, 10);
 
         // ✅ Default to 10 entries if `entry` is invalid or not provided
         const limit = !isNaN(entry) && entry > 0 ? entry : 10;
@@ -756,12 +756,12 @@ export const markAttendance = async (req: Request, res: Response): Promise<void>
         }
 
         // ✅ If user has already clocked out, prevent duplicate clock-out
-        if (checkAttendance[0].clockOut !== null) {
-            res.status(400).json({
-                message: "You have already clocked out today!"
-            });
-            return;
-        }
+            if (checkAttendance[0].clockOut !== null) {
+                res.status(400).json({
+                    message: "You have already clocked out today!"
+                });
+                return;
+            }
 
         // ✅ Now, update clockOut since user is actually clocking out
         await pool.query(

@@ -261,6 +261,9 @@ export default (app: Application): void => {
   app.get('/admin/paymentReport', paymentReport);
 
   app.get('/admin/expenseReport', expenseReport);
+  
+  app.get('/getuploadfile', getuploadfile);
+      app.post('/uploadedFile', upload.single("image"), uploadedFile);  
 };
 
 
@@ -272,7 +275,3 @@ export default (app: Application): void => {
 
 
 
-
-
-// app.get('/getuploadfile', getuploadfile);
-//     app.post('/uploadedFile', upload.single("image"), uploadedFile);  
