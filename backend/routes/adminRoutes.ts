@@ -1,5 +1,5 @@
 import { Application } from "express";
-import { getAllUsers, login, addUser, forgetPassword, updateUser, deleteUser, getAllCustomer, addCustomerInfo, updateCustomer, deleteCustomer, getAttendance, addAttendance, updateAttendance, deleteAttendance, addLeave, getUsersLeaves, authorizeLeaves, configHolidays, getHolidays, withdrawEmployee, createCatagory, addProject, alterCategory, deleteCategory, alterProjectInfo, deleteProject,  getProjects, assignProject, getAssignProject, alterAssignProject, deleteAssignment, createTodo, alterTodo, deleteTodo, getTodo, addProgress, alterProgress, deleteProgress, getProgress, addSales, alterSalesData, deleteSale, addPayment, getSales, alterPayments, deletePayment, getPayments, uploadedFile, getuploadfile, getCategory, markAttendance, getTimings, attendanceSummary, addQuotationDetail, addQuotation, getQuotations, updateQuotation, deleteQuotation, getExpenseCategory, createExpenseCatagory, alterExpenseCategory, deleteExpenseCategory, addExpense, updateExpense, deleteExpense, getAllAttendances, configureSalary, changePassword, getSalaryInfo, reActiveEmployee, addCalendarSession, salaryCycle, configureTime, updateTime, getTimeConfigured, deleteTime, withdrawSalary, refundAmount, updateHoliday, deleteHoliday, salesReport, getWithdrawnEmployees, progressReport, attendanceReport, paymentReport, getExpense, expenseReport} from "../controllers/adminController";
+import { getImage, getAllUsers, login, addUser, forgetPassword, updateUser, deleteUser, getAllCustomer, addCustomerInfo, updateCustomer, deleteCustomer, getAttendance, addAttendance, updateAttendance, deleteAttendance, addLeave, getUsersLeaves, authorizeLeaves, configHolidays, getHolidays, withdrawEmployee, createCatagory, addProject, alterCategory, deleteCategory, alterProjectInfo, deleteProject,  getProjects, assignProject, getAssignProject, alterAssignProject, deleteAssignment, createTodo, alterTodo, deleteTodo, getTodo, addProgress, alterProgress, deleteProgress, getProgress, addSales, alterSalesData, deleteSale, addPayment, getSales, alterPayments, deletePayment, getPayments, uploadedFile, getuploadfile, getCategory, markAttendance, getTimings, attendanceSummary, addQuotationDetail, addQuotation, getQuotations, updateQuotation, deleteQuotation, getExpenseCategory, createExpenseCatagory, alterExpenseCategory, deleteExpenseCategory, addExpense, updateExpense, deleteExpense, getAllAttendances, configureSalary, changePassword, getSalaryInfo, reActiveEmployee, addCalendarSession, salaryCycle, configureTime, updateTime, getTimeConfigured, deleteTime, withdrawSalary, refundAmount, updateHoliday, deleteHoliday, salesReport, getWithdrawnEmployees, progressReport, attendanceReport, paymentReport, getExpense, expenseReport} from "../controllers/adminController";
 import { authenticateToken, isAdmin } from "../middleware/middleware";
 import { upload } from "../middleware/uploadMiddleware"; 
 // import  path  from 'path';
@@ -8,7 +8,7 @@ import { upload } from "../middleware/uploadMiddleware";
 export default (app: Application): void => {
     app.post("/login", login);
 
-    app.get("/admin/getUsers/:entry",authenticateToken, isAdmin, getAllUsers);
+    app.get("/admin/getUsers/:entry", getAllUsers);
     // app.get("/admin/getUsers/:entry",getAllUsers);
 
     // app.post('/admin/addUsers',upload.single("image"), authenticateToken, isAdmin, addUser);
@@ -263,7 +263,11 @@ export default (app: Application): void => {
   app.get('/admin/expenseReport', expenseReport);
   
   app.get('/getuploadfile', getuploadfile);
-      app.post('/uploadedFile', upload.single("image"), uploadedFile);  
+
+  app.post('/uploadedFile', upload.single("image"), uploadedFile);  
+
+
+  app.get('/admin/getImage', getImage);
 };
 
 

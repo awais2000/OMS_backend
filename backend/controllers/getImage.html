@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>View User Details</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+
+    .user-card {
+      max-width: 400px;
+      padding: 20px;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      background-color: #f9f9f9;
+    }
+
+    .user-card img {
+      max-width: 150px;
+      border-radius: 6px;
+      margin-bottom: 15px;
+    }
+
+    .user-card .field {
+      margin-bottom: 10px;
+    }
+
+    .field label {
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>👤 View User Info</h2>
+
+  <div id="userContainer">Loading user data...</div>
+
+  <script>
+    async function fetchUser() {
+      try {
+        // Replace with actual API route, e.g. /admin/getUser?id=123
+        const response = await fetch("/admin/getUsers/10"); 
+        const user = await response.json();
+
+        const container = document.getElementById("userContainer");
+
+        if (!user || !user.id) {
+          container.innerHTML = "<p>User not found.</p>";
+          return;
+        }
+
+        const imageHtml = user.image
+          ? `<img src="${user.image}" alt="User Image" />`
+          : `<p><em>No image available</em></p>`;
+
+        container.innerHTML = `
+          <div class="user-card">
+            ${imageHtml}
+            <div class="field"><label>Name:</label> ${user.name}</div>
+            <div class="field"><label>Email:</label> ${user.email}</div>
+            <div class="field"><label>Contact:</label> ${user.contact}</div>
+            <div class="field"><label>CNIC:</label> ${user.cnic}</div>
+            <div class="field"><label>Address:</label> ${user.address}</div>
+            <div class="field"><label>Date of Birth:</label> ${user.date}</div>
+            <div class="field"><label>Role:</label> ${user.role}</div>
+          </div>
+        `;
+      } catch (err) {
+        console.error("Error loading user:", err);
+        document.getElementById("userContainer").innerHTML = "<p>Failed to load user data.</p>";
+      }
+    }
+
+    fetchUser();
+  </script>
+
+</body>
+</html>

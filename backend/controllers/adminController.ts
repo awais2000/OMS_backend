@@ -4,9 +4,8 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import fs from "fs";
 import path from "path";
-import { captureRejections } from "stream";
 
-  
+
 
 export const login = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -15,6 +14,13 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
         // ✅ Fetch user by email
         const [users]: any = await pool.query("SELECT * FROM login WHERE email = ?", [email]);
+
+        const checkStatus = users[0].loginStatus;
+        console.log(checkStatus);
+        if(checkStatus === 'N'){
+            res.send({message: "Invalid User!"});
+            return;
+        }
 
         if (users.length === 0) {
             res.status(400).json({ status: 400, message: "Invalid Username or Password" });
@@ -28,7 +34,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         const isHashed = storedPassword.startsWith("$2b$"); // bcrypt-hashed passwords start with "$2b$"
 
         if (!isHashed) {
-            console.log("⚠️ Detected unencrypted password. Hashing it now...");
+            console.log("Detected unencrypted password. Hashing it now...");
             const hashedPassword = await bcrypt.hash(storedPassword, 10);
 
             // ✅ Update database with the newly hashed password
@@ -48,8 +54,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         // ✅ Generate JWT token with email & role (NO PASSWORD)
         const token = jwt.sign(
             { email: user.email, role: user.role },
-            "your_secret_key",
-            { expiresIn: "60m" }
+            "your_secret_key"
         );
 
         // ✅ Send success response (excluding password)
@@ -77,22 +82,73 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
 
 export const getAllUsers = async (req: Request, res: Response): Promise<void> => {
-    try {
-        const entry = parseInt(req.params.entry, 10);
+  try {
+    const entry = parseInt(req.query.entry as string, 10);
+    const page = parseInt(req.query.page as string, 10);
 
-        // ✅ Default to 10 entries if `entry` is invalid or not provided
-        const limit = !isNaN(entry) && entry > 0 ? entry : 10;
+    const limit = !isNaN(entry) && entry > 0 ? entry : 10;
+    const pageNum = !isNaN(page) && page > 0 ? page : 1;
+    const offset = (pageNum - 1) * limit;
 
-        // ✅ Fetch users with a limit based on `entry`
-        const [rows]: any = await pool.query("SELECT * FROM login WHERE loginStatus = 'Y' LIMIT ?", [limit]);
+    const [rows]: any = await pool.query(
+      `SELECT *
+       FROM login 
+       WHERE loginStatus = 'Y' 
+       LIMIT ? OFFSET ?`,
+      [limit, offset]
+    );
 
-        res.json( rows );
-
-    } catch (error) {
-        console.error("❌ Error fetching users:", error);
-        res.status(500).json({ error: "Database query failed" });
+    if (!rows || rows.length === 0) {
+      res.status(404).json({ message: "No users found!" });
+      return;
     }
+
+    const users = await Promise.all(
+      rows.map(async (user: any) => {
+        let image: string | null = null;
+
+        if (user.image && fs.existsSync(user.image)) {
+          try {
+            const imageBuffer = fs.readFileSync(path.resolve(user.image));
+            const mimeType =
+              path.extname(user.image).toLowerCase() === ".png"
+                ? "image/png"
+                : "image/jpeg";
+            image = `data:${mimeType};base64,${imageBuffer.toString("base64")}`;
+          } catch (error) {
+            console.error(`⚠️ Error reading image for user ${user.id}:`, error);
+          }
+        }
+
+        return {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          password: user.password,
+          mobileNumber: user.mobileNumber,
+          image,
+        };
+      })
+    );
+
+    // ✅ Return array of user objects
+    res.status(200).json(users);
+
+  } catch (error) {
+    console.error("❌ Error fetching users:", error);
+    res.status(500).json({ error: "Database query failed" });
+  }
 };
+
+
+
+
+
+
+  export const getImage = async (req: Request, res: Response): Promise<void> => {
+    res.sendFile(path.join(__dirname, 'getImage.html'));
+  }
+  
 
 
 
@@ -199,64 +255,70 @@ export const uploadedFile = async (req: Request, res: Response): Promise<void> =
 
 export const addUser = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { name, email, password, contact, cnic, address, date, role } = req.body;
-
-        console.log("Uploaded File:", req.file);  // Log the uploaded file
-
-        if (!req.file) {
-            res.status(400).json({ message: "No file uploaded!" });
-            return;
-        }
-
-        const imagePath = req.file ? req.file.path.replace(/\\/g, "/") : null; // ✅ Store uploaded file path
-
-        res.status(200).json({ message: "Upload successful!", imagePath });
-
-        // ✅ Ensure required fields are present
-        if (!name || !email || !password || !cnic || !role) {
-             res.status(400).json({ status: 400, message: "Missing required fields" });
-        }
-
-        // ✅ Check if user already exists
-        const [existingUser]: any = await pool.query("SELECT * FROM login WHERE LOWER(email) = LOWER(?)", [email]);
-        if (existingUser.length > 0) {
-             res.status(400).json({ message: "User already exists!" });
-        }
-
-        // ✅ Hash the password before storing it
-        const saltRounds = 10;
-        const hashedPassword = await bcrypt.hash(password, saltRounds);
-
-        // ✅ Insert user into MySQL database with hashed password & image path
-        const query = `
-            INSERT INTO login (name, email, password, contact, cnic, address, date, role, image)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `;
-        const values = [name, email, hashedPassword, contact, cnic, address, date, role, imagePath];
-
-        const [result]: any = await pool.query(query, values);
-
-        // ✅ Send success response
-         res.status(201).json({
-            status: 201,
-            message: "User added successfully",
-            userId: result.insertId,
-            name,
-            email,
-            role,
-            contact,
-            address,
-            cnic,
-            date,
-            imagePath
-        });
-
+      const { name, email, password, contact, cnic, address, date, role } =
+        req.body;
+  
+      console.log("Uploaded File:", req.file); // Log the uploaded file
+  
+      // ✅ If no file is uploaded, imagePath should be NULL
+      const imagePath = req.file?.path.replace(/\\/g, "/") || null;
+  
+      // ✅ Ensure required fields are present
+      if (!name || !email || !password || !cnic || !role) {
+        res.status(400).json({ status: 400, message: "Missing required fields" });
+      }
+  
+      // ✅ Check if user already exists
+      const [existingUser]: any = await pool.query(
+        "SELECT * FROM login WHERE LOWER(email) = LOWER(?)",
+        [email]
+      );
+      if (existingUser.length > 0) {
+        res.status(400).json({ message: "User already exists!" });
+      }
+  
+      // ✅ Hash the password before storing it
+      const saltRounds = 10;
+      const hashedPassword = await bcrypt.hash(password, saltRounds);
+  
+      // ✅ Insert user into MySQL database with hashed password & image path
+      const query = `
+              INSERT INTO login (name, email, password, contact, cnic, address, date, role, image)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `;
+      const values = [
+        name,
+        email,
+        hashedPassword,
+        contact,
+        cnic,
+        address,
+        date,
+        role,
+            
+      ];
+  
+      const [result]: any = await pool.query(query, values);
+  
+      // ✅ Send success response
+      res.status(201).json({
+        status: 201,
+        message: "User added successfully",
+        userId: result.insertId,
+        name,
+        email,
+        role,
+        contact,
+        address,
+        cnic,
+        date,
+        imagePath,
+      });
     } catch (error) {
-        console.error("❌ Error adding user:", error);
-         res.status(500).json({ status: 500, message: "Internal Server Error" });
+      console.error("❌ Error adding user:", error);
+      res.status(500).json({ status: 500, message: "Internal Server Error" });
     }
-};
-
+  };
 
 
 
@@ -507,7 +569,7 @@ export const getAttendance = async (req: Request, res: Response): Promise<void> 
         const [attendance]: any = await pool.query(
             `SELECT 
                 userId, 
-                date, 
+                DATE_FORMAT(CONVERT_TZ(date, '+00:00', @@session.time_zone), '%Y-%m-%d') AS date,
                 clockIn, 
                 clockOut, 
                 day, 
@@ -568,7 +630,7 @@ export const getAttendance = async (req: Request, res: Response): Promise<void> 
       const [attendance]: any = await pool.query(
         `SELECT 
                   userId, 
-                  CONVERT_TZ(date, '+00:00', @@session.time_zone) AS date, 
+                  DATE_FORMAT(CONVERT_TZ(date, '+00:00', @@session.time_zone), '%Y-%m-%d') AS date,
                   clockIn, 
                   clockOut, 
                   day, 
@@ -823,7 +885,7 @@ console.log(`Final Working Hours: ${formattedWorkingHours}`);
 
         // ✅ Fetch final attendance record
         const [finalAttendance]: any = await pool.query(
-            "SELECT * FROM attendance WHERE userId = ? AND date = CURDATE()",
+            `SELECT *, DATE_FORMAT(CONVERT_TZ(date, '+00:00', @@session.time_zone), '%Y-%m-%d') AS date FROM attendance WHERE userId = ? AND date = CURDATE()`,
             [userId]
         );
 
