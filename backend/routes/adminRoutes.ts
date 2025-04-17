@@ -103,60 +103,60 @@ export default (app: Application): void => {
 
 
     //--------> add Catagory:
-    app.get('/admin/getCategory/:entry',authenticateToken, isAdmin, getCategory);
+    app.get('/admin/getCategory/:entry', getCategory);
 
-    app.post('/admin/createCatagory',authenticateToken, isAdmin, createCatagory);
+    app.post('/admin/createCatagory',createCatagory);
 
-    app.put('/admin/alterCategory/:id',authenticateToken, isAdmin, alterCategory);
+    app.put('/admin/alterCategory/:id', alterCategory);
 
-    app.patch('/admin/deleteCategory/:id',authenticateToken, isAdmin, deleteCategory);
+    app.patch('/admin/deleteCategory/:id', deleteCategory);
 
 
 
 
 
     //======>add project:
-    app.get('/admin/getProjects/:entry',authenticateToken, isAdmin, getProjects);
+    app.get('/admin/getProjects/:entry', getProjects);
 
-    app.post('/admin/addProject',authenticateToken, isAdmin, addProject);
+    app.post('/admin/addProject', addProject);
 
-    app.put('/admin/alterProjectInfo/:id',authenticateToken, isAdmin, alterProjectInfo);//===============>change update
+    app.put('/admin/alterProjectInfo/:id', alterProjectInfo);//===============>change update
 
-    app.patch('/admin/deleteProject/:id',authenticateToken, isAdmin, deleteProject);
+    app.patch('/admin/deleteProject/:id', deleteProject);
 
 
 
 
     // ======> assign project:
-    app.get('/admin/getAssignProjects/:entry',authenticateToken, isAdmin, getAssignProject);
+    app.get('/admin/getAssignProjects/:entry', getAssignProject);
 
-    app.post('/admin/assignProject/:userId/:projectId', authenticateToken, isAdmin, assignProject);
+    app.post('/admin/assignProject/:userId/:projectId', assignProject);
 
-    app.put('/admin/alterAssignProject/:employeeId/:projectId/:id',  authenticateToken, isAdmin, alterAssignProject);
+    app.put('/admin/alterAssignProject/:employeeId/:projectId/:id',   alterAssignProject);
 
-    app.patch('/admin/deleteAssignment/:id',authenticateToken, isAdmin, deleteAssignment);
+    app.patch('/admin/deleteAssignment/:id', deleteAssignment);
 
 
 
 
 
     //todo and progress:
-    app.get('/admin/getTodos/:entry',authenticateToken, isAdmin, getTodo);
+    app.get('/admin/getTodos/:entry', getTodo);
 
-    app.post('/admin/createTodo/:id',authenticateToken, isAdmin, createTodo);
+    app.post('/admin/createTodo/:id', createTodo);
 
-    app.put('/admin/alterTodo/:employeeId/:id',authenticateToken, isAdmin, alterTodo); 
+    app.put('/admin/alterTodo/:employeeId/:id', alterTodo); 
 
-    app.patch('/admin/deleteTodo/:id',authenticateToken, isAdmin, deleteTodo); 
+    app.patch('/admin/deleteTodo/:id', deleteTodo); 
 
 
-    app.get('/admin/getProgress/:entry?',authenticateToken, isAdmin, getProgress);
+    app.get('/admin/getProgress/:entry?', getProgress);
 
-    app.post('/admin/addProgress/:employeeId/:projectId', authenticateToken, isAdmin, addProgress);
+    app.post('/admin/addProgress/:employeeId/:projectId',  addProgress);
 
-    app.put ('/admin/alterProgress/:employeeId/:projectId/:id',  authenticateToken, isAdmin, alterProgress);
+    app.put ('/admin/alterProgress/:employeeId/:projectId/:id',   alterProgress);
 
-    app.patch('/admin/deleteProgress/:id',authenticateToken, isAdmin, deleteProgress); 
+    app.patch('/admin/deleteProgress/:id', deleteProgress); 
     
 
 
@@ -164,11 +164,11 @@ export default (app: Application): void => {
 
 
     //add sales and payments:
-    app.get('/admin/getSales/:entry',authenticateToken, isAdmin, getSales);
+    app.get('/admin/getSales/:entry',getSales);
 
-    app.post('/admin/addSales/:customerId/:projectId',authenticateToken, isAdmin, addSales);
+    app.post('/admin/addSales/:customerId/:projectId', addSales);
 
-    app.put('/admin/alterSalesData/:customerId/:projectId/:id', authenticateToken, isAdmin, alterSalesData);
+    app.put('/admin/alterSalesData/:customerId/:projectId/:id',  alterSalesData);
 
     app.patch('/admin/deleteSale/:id',authenticateToken, isAdmin, deleteSale);
 
@@ -176,9 +176,9 @@ export default (app: Application): void => {
 
 
 
-    app.get('/admin/getPayments/:entry',authenticateToken, isAdmin, getPayments);
+    app.get('/admin/getPayments/:entry', getPayments);
 
-    app.post('/admin/addPayment/:id',authenticateToken, isAdmin, addPayment);
+    app.post('/admin/addPayment/:id', addPayment);
 
     app.put('/admin/alterPayments/:customerId/:id',alterPayments);
 

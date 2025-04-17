@@ -620,11 +620,7 @@ export const progressReport = async (req: Request, res: Response): Promise<void>
             return;
         }
 
-        res.status(200).json({
-            status: 200,
-            message: "Progress fetched successfully!",
-            progress: result
-        });
+        res.status(200).json(result);
 
     } catch (error) {
         console.error("❌ Error fetching progress:", error);
@@ -675,7 +671,7 @@ export const attendanceReport = async (req: Request, res: Response): Promise<voi
             return;
         }
 
-        res.status(200).json(...result);
+        res.status(200).json(result);
 
     } catch (error) {
         console.error("❌ Error fetching attendance:", error);

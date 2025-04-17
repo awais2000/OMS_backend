@@ -1484,10 +1484,8 @@ export const getCategory = async (req: Request, res: Response): Promise<void> =>
         const query =   `select * from categories where categoryStatus = 'Y' LIMIT ?`;
         const values = [limit];
         const [result]: any = await pool.query(query, values);
-        res.status(200).send({messsage:"categories Fetched Successfully!",
-            ...result
-        }
-        )
+        res.status(200).send(result);
+
     } catch (error) {
         console.error("❌ Error fetching categories:", error);
         res.status(500).json({ message: "Internal Server Error" });
@@ -1622,10 +1620,10 @@ export const addProject = async (req: Request, res: Response): Promise<void> => 
         const [categories]: any = await pool.query(`SELECT categoryName FROM categories where categoryStatus = ?`, 'Y');
 
         // ✅ Extract project details from request body
-        const { projectName, projectCategory, startDate, endDate } = req.body;
+        const { projectName, projectCategory, description, startDate, endDate } = req.body;
 
         // ✅ Ensure required fields are present
-        if (!projectName || !projectCategory || !startDate || !endDate) {
+        if (!projectName || !projectCategory || !description || !startDate || !endDate) {
             res.status(400).json({ message: "Please fill all the fields!", categories });
             return;
         }
@@ -1651,8 +1649,8 @@ export const addProject = async (req: Request, res: Response): Promise<void> => 
         }
 
         // ✅ Insert new project
-        const query = `INSERT INTO projects (projectName, projectCategory, startDate, endDate) VALUES (?, ?, ?, ?)`;
-        const values = [projectName, projectCategory, startDate, endDate];
+        const query = `INSERT INTO projects (projectName, projectCategory, description, startDate, endDate) VALUES (?, ?, ?, ?, ?)`;
+        const values = [projectName, projectCategory, description, startDate, endDate];
 
         const [result]: any = await pool.query(query, values);
 
@@ -1683,10 +1681,7 @@ export const getProjects = async (req: Request, res: Response): Promise<void> =>
         const query =   `select * from projects where projectStatus = 'Y' LIMIT ?`;
         const values = [limit];
         const [result]: any = await pool.query(query, values);
-        res.status(200).send({messsage:"Projects Fetched Successfully!",
-            ...result
-        }
-        )
+        res.status(200).send(result);
     } catch (error) {
         console.error("❌ Error fetching projects:", error);
         res.status(500).json({ message: "Internal Server Error" });
@@ -1724,7 +1719,7 @@ export const alterProjectInfo = async (req: Request, res: Response): Promise<voi
             SET projectName = ?, projectCategory = ?, description = ?,  startDate = ?, endDate = ?
             WHERE id = ?
         `;
-        const values = [projectName, projectCategory, startDate, endDate, id];
+        const values = [projectName, projectCategory, description, startDate, endDate, id];
 
         await pool.query(updateQuery, values);
 
@@ -1781,9 +1776,7 @@ export const getAssignProject = async (req: Request, res: Response): Promise<voi
         const values = [limit];
         const [result]:any = await pool.query(query ,values);
 
-        res.status(200).send({message: "Assigned Projects Fetched Success!",
-            ...result
-            })
+        res.status(200).send(result);
     } catch (error) {
         console.error("❌ Error Fetching Assigned Projects:", error);
         res.status(500).json({ message: "Internal Server Error" });
@@ -1837,7 +1830,7 @@ export const assignProject = async (req: Request, res: Response): Promise<void> 
         // ✅ Send success response
         res.status(201).json({
             message: "Project assigned successfully!",
-            assignedProject: assignedProject[0] // Return the assigned project details
+             ...assignedProject[0] // Return the assigned project details
         });
 
     } catch (error) {
@@ -1879,7 +1872,6 @@ export const alterAssignProject = async (req: Request, res: Response): Promise<v
             , [id]);
 
         res.status(200).json({
-            message: "Project assignment updated successfully!",
             ...updatedAssignment[0]
         });
 
@@ -1940,9 +1932,7 @@ export const getTodo = async (req: Request, res: Response): Promise<void> => {
         console.log(entry);
         const limit = !isNaN(entry) && entry > 0 ? entry : 10;
         const [result]: any = await pool.query(`select * from todo where todoStatus = 'Y' LIMIT ?`, [limit]);
-        res.status(200).send({message:"todo fetched successfully!",
-            ...result
-        })
+        res.status(200).send(result)
     } catch (error) {
         console.error("❌ Error fetching todo!:", error);
         res.status(500).json({ message: "Internal Server Error" });
@@ -2096,9 +2086,9 @@ export const getProgress = async (req: Request, res: Response): Promise<void> =>
             return;
         }
 
-        res.status(200).send({message:"progress fetched successfully!",
-            ...result[0]
-        })
+        res.status(200).send(
+            result
+        )
     } catch (error) {
         console.error("❌ Error fetching progress:", error);
         res.status(500).json({ message: "Internal Server Error" });
@@ -2154,7 +2144,7 @@ export const addProgress = async (req: Request, res: Response): Promise<void> =>
 
         res.status(201).json({
             message: "Progress added successfully!",
-            progress: seeProgress[0]
+             ...seeProgress[0]
         });
 
     } catch (error) {
@@ -2256,9 +2246,7 @@ export const getSales = async (req: Request, res: Response): Promise<void> => {
             return;
         }
 
-        res.status(200).send({message:"sales fetched successfully!",
-            ...result
-        })
+        res.status(200).send(result);
     } catch (error) {
         console.error("❌ Error fetching sales:", error);
         res.status(500).json({ message: "Internal Server Error" });
@@ -2317,7 +2305,7 @@ export const addSales = async (req: Request, res: Response): Promise<void> => {
 
         res.status(201).json({
             message: "Sales report added successfully!",
-            sales: getresult[0]
+            ...getresult[0]
         });
 
     } catch (error) {
@@ -2428,9 +2416,7 @@ export const getPayments = async (req: Request, res: Response): Promise<void> =>
             return;
         }
 
-        res.status(200).send({message:"payments fetched successfully!",
-            ...result
-        })
+        res.status(200).send(result);
     } catch (error) {
         console.error("❌ Error fetching payments:", error);
         res.status(500).json({ message: "Internal Server Error" });
@@ -2477,9 +2463,8 @@ export const addPayment = async (req: Request, res: Response): Promise<void> => 
         );
 
         res.status(201).json({
-            message: "Payment information added successfully!",
-            payment: addedPayments[0]
-        });
+            ...addedPayments[0]
+        })
 
     } catch (error) {
         console.error("❌ Error adding payment:", error);
@@ -2594,7 +2579,7 @@ export const addQuotationDetail = async (req: Request, res: Response): Promise<v
 
         sessionData.cart.push({ description, QTY, UnitPrice });
 
-        res.status(200).json({ message: "Product added to cart!", cart: sessionData.cart });
+        res.status(200).json({ ...sessionData.cart[0] });
     } catch (error) {
         console.error("❌ Error adding to cart:", error);
         res.status(500).json({ message: "Internal Server Error!" });
@@ -2672,22 +2657,19 @@ export const addQuotation = async (req: Request, res: Response): Promise<void> =
 
         // ✅ Fetch Updated Quotation Data
         const [getSavedData]: any = await pool.query(
-            `SELECT q.customerId, c.customerName, c.customerAddress, c.customerContact, 
-            q.date, q.subTotal, q.taxRate, q.shippingHandling, q.totalBill, q.invoiceno, i.quotationNo
-            FROM quotation q 
-            JOIN customers c ON q.customerId = c.id
-            JOIN invoiceno i ON i.id = q.invoiceno
-            WHERE quotationStatus = 'Y'`
+            `SELECT q.*, c.*, i.*
+            FROM quotation q
+             LEFT JOIN customers c ON q.customerId = c.id
+             LEFT JOIN invoiceno i ON i.id = q.invoiceno
+             WHERE q.quotationStatus = 'Y'`
         );
 
         // ✅ Clear Session Cart
         sessionData.cart = [];
 
         res.status(200).json({
-            message: "Quotation finalized successfully!",
-            ...getSavedData[0],
-            ...check
-        });
+            ...getSavedData[0]
+                });
 
     } catch (error) {
         console.error("❌ Error finalizing quotation:", error);
@@ -2707,21 +2689,18 @@ export const getQuotations = async (req: Request, res: Response): Promise<void> 
         console.log(entry);
         const limit = !isNaN(entry) && entry > 0 ? entry : 10;
 
-        const [result]:any = await pool.query(`select q.customerId, c.customerName, c.customerAddress, c.customerContact, q.date, q.subTotal, q.taxRate, q.shippingHandling, q.totalBill, q.invoiceno, i.quotationNo
-            from quotation q 
-            join customers c on
-            q.customerId = c.id
-            join invoiceno i
-            on   i.id = q.invoiceno
-            where quotationStatus = 'Y' LIMIT ?`,  [limit]);
+        const [result]:any = await pool.query(`SELECT q.*, c.*, i.*
+            FROM quotation q
+             LEFT JOIN customers c ON q.customerId = c.id
+             LEFT JOIN invoiceno i ON i.id = q.invoiceno
+             WHERE q.quotationStatus = 'Y'
+            LIMIT ?`,  [limit]);
 
         if(result.lenght ===0){
             res.send({message: "no quotation found!"})
         }
 
-        res.status(200).send([" Quotations Sucuessfully fetched!",
-            ...result
-        ])
+        res.status(200).send(result);
     } catch (error) {
         console.error({message:"error fetching quotations: "}, error)
         res.status(500).send({message:"Internal Server Error!"})
@@ -3096,12 +3075,10 @@ export const getSalaryInfo = async (req: Request, res: Response): Promise<void> 
         const [result]:any = await pool.query( `select s.* , l.name
             from configureSalaries s
             join login l on
-            s.employeeId = l.id`
+            s.userId = l.id`
         );
 
-        res.status(200).send([ "Salary information fetched successfully!",
-            ...result
-            ])
+        res.status(200).send(result)
     } catch (error) {
         console.error("❌ Error fetching information:", error);
         res.status(500).json({ message: "Internal Server Error" });
@@ -3291,16 +3268,13 @@ export const salaryCycle = async (req: Request, res: Response): Promise<void> =>
 // getTimeConfigured
 export const getTimeConfigured = async (req: Request, res: Response): Promise<void> => {
        try {
-        const [query]: any = await pool.query(`select * from configuretime status = 'Y'`);
+        const [query]: any = await pool.query(`select * from configuretime where status = 'Y'`);
         if(!query){
             res.send({message: "No Entry Found!"})
             return;
         } 
 
-        res.status(200).send([
-            "Configured Time Fetched Successfully!",
-            ...query
-        ])
+        res.status(200).send(query)
        } catch (error) {
         console.error("❌ Error Fetching Time:", error);
         res.status(500).json({ message: "Internal Server Error" });
@@ -3658,7 +3632,7 @@ export const attendanceReport = async (req: Request, res: Response): Promise<voi
             return;
         }
 
-        res.status(200).json(...result);
+        res.status(200).json(result);
 
     } catch (error) {
         console.error("❌ Error fetching attendance:", error);
@@ -3699,9 +3673,7 @@ export const paymentReport = async (req: Request, res: Response): Promise<void> 
             return;
         }
 
-        res.status(200).send({message:"payments fetched successfully!",
-            result
-        })
+        res.status(200).send(result)
     } catch (error) {
         console.error("❌ Error fetching payments:", error);
         res.status(500).json({ message: "Internal Server Error" });
