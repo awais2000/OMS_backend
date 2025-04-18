@@ -3113,7 +3113,6 @@ export const configureSalary = async (req: Request, res: Response): Promise<void
         const [result]: any = await pool.query(query, [id, monthlySalary, overtimeAllowance, projectAllowance, bonusAllowance, medicalAllowance, date, wefDate, wefStatus]);
 
         res.status(201).json({
-            message: "Salary Information added successfully!",
             ...result[0]
         });
 
