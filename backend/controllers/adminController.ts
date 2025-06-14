@@ -81,74 +81,159 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
 
 
-export const getAllUsers = async (req: Request, res: Response): Promise<void> => {
+// export const getAllUsers = async (req: Request, res: Response): Promise<void> => {
+//   try {
+//     const entry = parseInt(req.query.entry as string, 10);
+//     const page = parseInt(req.query.page as string, 10);
+
+//     const limit = !isNaN(entry) && entry > 0 ? entry : 10;
+//     const pageNum = !isNaN(page) && page > 0 ? page : 1;
+//     const offset = (pageNum - 1) * limit;
+
+//     const [rows]: any = await pool.query(
+//       `SELECT *
+//        FROM login 
+//        WHERE loginStatus = 'Y' 
+//        LIMIT ? OFFSET ?`,
+//       [limit, offset]
+//     );
+
+//     if (!rows || rows.length === 0) {
+//       res.status(404).json({ message: "No users found!" });
+//       return;
+//     }
+
+//     const users = await Promise.all(
+//       rows.map(async (user: any) => {
+//         let image: string | null = null;
+
+//         if (user.image && fs.existsSync(user.image)) {
+//           try {
+//             const imageBuffer = fs.readFileSync(path.resolve(user.image));
+//             const mimeType =
+//               path.extname(user.image).toLowerCase() === ".png"
+//                 ? "image/png"
+//                 : "image/jpeg";
+//             image = `data:${mimeType};base64,${imageBuffer.toString("base64")}`;
+//           } catch (error) {
+//             console.error(`⚠️ Error reading image for user ${user.id}:`, error);
+//           }
+//         }
+
+//         return {
+//           id: user.id,
+//           name: user.name,
+//           email: user.email,
+//           password: user.password,
+//           mobileNumber: user.mobileNumber,
+//           image,
+//         };
+//       })
+//     );
+
+//     // ✅ Return array of user objects
+//     res.status(200).json(users);
+
+//   } catch (error) {
+//     console.error("❌ Error fetching users:", error);
+//     res.status(500).json({ error: "Database query failed" });
+//   }
+// };
+export const getAllUsers = async (
+
+  req: Request,
+
+  res: Response
+
+): Promise<void> => {
+
   try {
-    const entry = parseInt(req.query.entry as string, 10);
-    const page = parseInt(req.query.page as string, 10);
 
-    const limit = !isNaN(entry) && entry > 0 ? entry : 10;
-    const pageNum = !isNaN(page) && page > 0 ? page : 1;
-    const offset = (pageNum - 1) * limit;
+    let page = parseInt(req.query.page as string) || 1;
 
-    const [rows]: any = await pool.query(
-      `SELECT *
-       FROM login 
-       WHERE loginStatus = 'Y' 
-       LIMIT ? OFFSET ?`,
-      [limit, offset]
-    );
+    let limit = parseInt(req.query.limit as string) || 10;
 
-    if (!rows || rows.length === 0) {
-      res.status(404).json({ message: "No users found!" });
-      return;
-    }
+    let offset = (page - 1) * limit;
 
-    const users = await Promise.all(
-      rows.map(async (user: any) => {
-        let image: string | null = null;
 
-        if (user.image && fs.existsSync(user.image)) {
-          try {
-            const imageBuffer = fs.readFileSync(path.resolve(user.image));
-            const mimeType =
-              path.extname(user.image).toLowerCase() === ".png"
-                ? "image/png"
-                : "image/jpeg";
-            image = `data:${mimeType};base64,${imageBuffer.toString("base64")}`;
-          } catch (error) {
-            console.error(`⚠️ Error reading image for user ${user.id}:`, error);
+
+    console.log(`Fetching page ${page} with limit ${limit}`);
+
+
+
+    // Fetch users
+
+    const [rows]: any = await pool.query("SELECT * FROM login where loginStatus = 'Y' LIMIT ? OFFSET ?", [limit, offset]);
+
+
+
+    // Process each user's image
+
+    const usersWithImages = await Promise.all(rows.map(async (user: any) => {
+
+      let imageBase64 = null;
+
+
+
+      if (user.image) {
+
+        try {
+
+          const fullPath = path.join(process.cwd(), user.image);
+
+          if (fs.existsSync(fullPath)) {
+
+            const buffer = fs.readFileSync(fullPath);
+
+            const ext = path.extname(fullPath).toLowerCase().slice(1);
+
+            imageBase64 = `data:image/${ext};base64,${buffer.toString('base64')}`;
+
           }
+
+        } catch (err) {
+
+          console.warn(`Failed to read image for user ${user.id}`, err);
+
         }
 
-        return {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          password: user.password,
-          mobileNumber: user.mobileNumber,
-          image,
-        };
-      })
-    );
+      }
 
-    // ✅ Return array of user objects
-    res.status(200).json(users);
+
+      return {
+
+        ...user,
+
+        image: imageBase64,
+
+      };
+
+    }));
+
+
+
+    res.status(200).send(usersWithImages);
+    console.log(usersWithImages);
+
 
   } catch (error) {
-    console.error("❌ Error fetching users:", error);
+
+    console.error("Error fetching users:", error);
+
     res.status(500).json({ error: "Database query failed" });
+
   }
-};
+
+}; 
 
 
 
 
 
-
-  export const getImage = async (req: Request, res: Response): Promise<void> => {
+export const getImage = async (req: Request, res: Response): Promise<void> => {
     res.sendFile(path.join(__dirname, 'getImage.html'));
-  }
-  
+}
+
 
 
 
@@ -3711,3 +3796,69 @@ export const expenseReport = async (req: Request, res: Response): Promise<void> 
 
 
 //it Ends here!
+
+
+
+export const addPosition = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const {employeeId, position} = req.body;
+        if (!employeeId || !position) {
+            res.status(400).send({ message: "Please provide all fields!" });
+            return;
+        }
+
+        const [insertQuery]:any = await pool.query(`INSERT INTO position (employeeId, position) VALUES (?, ?)`, [employeeId, position]);
+
+        const id = insertQuery.insertId;
+
+        const [result]: any = await pool.query(`SELECT * FROM positions WHERE id = ?`, [id]);
+        if (result.length === 0) {
+            res.status(404).send({ message: "Position not found!" });
+            return;
+        }   
+
+        res.status(200).send({...result[0]})
+
+        if (insertQuery.affectedRows === 0) {
+            res.status(500).send({ message: "Failed to add position!" });
+            return;
+        }   
+        
+    } catch (error) {
+        console.error("❌ Error adding position of the user:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+}
+
+
+
+
+
+export const getUserById = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const userId = req.params.id;
+
+        if (!userId) {
+            res.status(400).send({ message: "User ID is required!" });
+            return;
+        } 
+
+        const [user]: any = await pool.query(`SELECT * FROM login WHERE id = ? and loginStatus = 'Y'`, [userId]);
+        if (user.length === 0) {    
+            res.status(404).send({ message: "User not found!" });
+            return;
+        }   
+
+
+        res.status(200).send({...user[0]});
+
+    } catch (error) {
+        console.error("❌ Error fetching user by ID:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+}
+
+
+
+
+
