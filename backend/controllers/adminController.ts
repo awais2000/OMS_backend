@@ -3862,3 +3862,70 @@ export const getUserById = async (req: Request, res: Response): Promise<void> =>
 
 
 
+export const updatePosition = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const id = req.params.id;
+        const { employeeId, position } = req.body;
+
+        if (!id || !employeeId || !position) {
+            res.status(400).send({ message: "Please provide all fields!" });
+            return;
+        }   
+
+        const [existingPosition]: any = await pool.query(`SELECT * FROM position WHERE id = ?`, [id]);
+        if (existingPosition.length === 0) {
+            res.status(404).send({ message: "Position not found!" });
+            return;
+        }
+
+        const [updateQuery]: any = await pool.query(
+            `UPDATE position SET employeeId = ?, position = ? WHERE id = ?`, 
+            [employeeId, position, id]
+        );  
+        if (updateQuery.affectedRows === 0) {
+            res.status(500).send({ message: "Failed to update position!" });
+            return;
+        }
+        const [result]: any = await pool.query(`SELECT * FROM position WHERE id = ?`, [id]);
+
+        res.status(200).send({...result[0], message: "Position updated successfully!"});
+
+    } catch (error) {
+        console.error("❌ Error updating position:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+        
+    }
+}
+
+
+
+
+
+export const deletePosition = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const id = req.params.id;
+
+        if (!id) {
+            res.status(400).send({ message: "Position ID is required!" });
+            return;
+        }   
+
+        const [existingPosition]: any = await pool.query(`SELECT * FROM position WHERE id = ?`, [id]);
+        if (existingPosition.length === 0) {
+            res.status(404).send({ message: "Position not found!" });
+            return;
+        }
+
+        const [deleteQuery]: any = await pool.query(`update position set status = 'N' WHERE id = ?`, [id]);
+        if (deleteQuery.affectedRows === 0) {
+            res.status(500).send({ message: "Failed to delete position!" });
+            return;
+        }
+
+        res.status(200).send({ message: "Position deleted successfully!" });
+
+    } catch (error) {
+        console.error("❌ Error deleting position:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
