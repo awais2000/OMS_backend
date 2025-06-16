@@ -1,5 +1,5 @@
 import { Application } from "express";
-import { getImage, getAllUsers, login, addUser, forgetPassword, updateUser, deleteUser, getAllCustomer, addCustomerInfo, updateCustomer, deleteCustomer, getAttendance, addAttendance, updateAttendance, deleteAttendance, addLeave, getUsersLeaves, authorizeLeaves, configHolidays, getHolidays, withdrawEmployee, createCatagory, addProject, alterCategory, deleteCategory, alterProjectInfo, deleteProject,  getProjects, assignProject, getAssignProject, alterAssignProject, deleteAssignment, createTodo, alterTodo, deleteTodo, getTodo, addProgress, alterProgress, deleteProgress, getProgress, addSales, alterSalesData, deleteSale, addPayment, getSales, alterPayments, deletePayment, getPayments, uploadedFile, getuploadfile, getCategory, markAttendance, getTimings, attendanceSummary, addQuotationDetail, addQuotation, getQuotations, updateQuotation, deleteQuotation, getExpenseCategory, createExpenseCatagory, alterExpenseCategory, deleteExpenseCategory, addExpense, updateExpense, deleteExpense, getAllAttendances, configureSalary, changePassword, getSalaryInfo, reActiveEmployee, addCalendarSession, salaryCycle, configureTime, updateTime, getTimeConfigured, deleteTime, withdrawSalary, refundAmount, updateHoliday, deleteHoliday, salesReport, getWithdrawnEmployees, progressReport, attendanceReport, paymentReport, getExpense, expenseReport, getUserById, addPosition, updatePosition, deletePosition} from "../controllers/adminController";
+import { getImage, getAllUsers, login, addUser, forgetPassword, updateUser, deleteUser, getAllCustomer, addCustomerInfo, updateCustomer, deleteCustomer, getAttendance, addAttendance, updateAttendance, deleteAttendance, addLeave, getUsersLeaves, authorizeLeaves, configHolidays, getHolidays, withdrawEmployee, createCatagory, addProject, alterCategory, deleteCategory, alterProjectInfo, deleteProject,  getProjects, assignProject, getAssignProject, alterAssignProject, deleteAssignment, createTodo, alterTodo, deleteTodo, getTodo, addProgress, alterProgress, deleteProgress, getProgress, addSales, alterSalesData, deleteSale, addPayment, getSales, alterPayments, deletePayment, getPayments, uploadedFile, getuploadfile, getCategory, markAttendance, getTimings, attendanceSummary, addQuotationDetail, addQuotation, getQuotations, updateQuotation, deleteQuotation, getExpenseCategory, createExpenseCatagory, alterExpenseCategory, deleteExpenseCategory, addExpense, updateExpense, deleteExpense, getAllAttendances, configureSalary, changePassword, getSalaryInfo, reActiveEmployee, addCalendarSession, salaryCycle, configureTime, updateTime, getTimeConfigured, deleteTime, withdrawSalary, refundAmount, updateHoliday, deleteHoliday, salesReport, getWithdrawnEmployees, progressReport, attendanceReport, paymentReport, getExpense, expenseReport, getUserById, addPosition, updatePosition, deletePosition, getUserPosition, addSupplier, getSuppliers, updateSupplier, deleteSupplier, getSupplierById, searchPosition, searchSupplier, addOvertime, getOvertime, updateOvertime, deleteOvertime, getOvertimeById, searchOvertime, addLoan, getLoan, updateLoan, deleteLoan} from "../controllers/adminController";
 import { authenticateToken, isAdmin } from "../middleware/middleware";
 import { upload } from "../middleware/uploadMiddleware"; 
 // import  path  from 'path';
@@ -269,11 +269,47 @@ export default (app: Application): void => {
 
   app.get('/admin/getImage', getImage);
 
+  app.get('/admin/searchPosition', searchPosition);
+
   app.get('/admin/getUserById/:id', getUserById);
+
+  app.get('/admin/getUserPosition', getUserPosition);
 
   app.post('/admin/addPosition', addPosition);
 
   app.put('/admin/updatePosition/:id', updatePosition);
 
   app.patch('/admin/deletePosition/:id', deletePosition); // Assuming deletePosition is similar to deleteUser
+
+  app.post('/admin/addSupplier', addSupplier);
+
+  app.get('/admin/getSuppliers', getSuppliers);
+
+  app.put('/admin/updateSupplier/:id', updateSupplier);
+
+  app.patch('/admin/deleteSupplier/:id', deleteSupplier);
+
+  app.get('/admin/getSupplierById/:id', getSupplierById);
+
+  app.get('/admin/searchSupplier', searchSupplier);
+
+  app.post('/admin/addOvertime', addOvertime);
+
+  app.get('/admin/getOvertime', getOvertime);
+
+  app.put('/admin/updateOvertime/:id', updateOvertime);
+
+  app.patch('/admin/deleteOvertime/:id', deleteOvertime);
+
+  app.get('/admin/getOvertimeById/:id', getOvertimeById);
+
+  app.get('/admin/searchOvertime', searchOvertime);
+
+  app.post('/admin/addLoan', addLoan);
+
+  app.get('/admin/getLoan', getLoan);
+
+  app.put('/admin/updateLoan/:id', updateLoan);
+
+  app.patch('/admin/deleteLoan/:id', deleteLoan);
 };

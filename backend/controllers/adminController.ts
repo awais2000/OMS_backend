@@ -12,7 +12,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         const { email, password } = req.body;
         console.log("Email:", email, "Password:", password);
 
-        // ✅ Fetch user by email
+        //  Fetch user by email
         const [users]: any = await pool.query("SELECT * FROM login WHERE email = ?", [email]);
 
         const checkStatus = users[0].loginStatus;
@@ -30,34 +30,34 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         const user = users[0];
         let storedPassword = user.password;
 
-        // ✅ Check if the stored password is already hashed
+        //  Check if the stored password is already hashed
         const isHashed = storedPassword.startsWith("$2b$"); // bcrypt-hashed passwords start with "$2b$"
 
         if (!isHashed) {
             console.log("Detected unencrypted password. Hashing it now...");
             const hashedPassword = await bcrypt.hash(storedPassword, 10);
 
-            // ✅ Update database with the newly hashed password
+            //  Update database with the newly hashed password
             await pool.query("UPDATE login SET password = ? WHERE email = ?", [hashedPassword, email]);
-            console.log("✅ Password successfully hashed and updated.");
+            console.log(" Password successfully hashed and updated.");
 
             storedPassword = hashedPassword; // Use the new hashed password for authentication
         }
 
-        // ✅ Compare hashed password using bcrypt
+        //  Compare hashed password using bcrypt
         const isMatch = await bcrypt.compare(password, storedPassword);
         if (!isMatch) {
             res.status(400).json({ status: 400, message: "Invalid Username or Password" });
             return;
         }
 
-        // ✅ Generate JWT token with email & role (NO PASSWORD)
+        //  Generate JWT token with email & role (NO PASSWORD)
         const token = jwt.sign(
             { email: user.email, role: user.role },
             "your_secret_key"
         );
 
-        // ✅ Send success response (excluding password)
+        //  Send success response (excluding password)
         res.json({
             status: 200,
             message: "Login Successful",
@@ -73,7 +73,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         });
 
     } catch (error) {
-        console.error("❌ Login Error:", error);
+        console.error(" Login Error:", error);
         res.status(500).json({ status: 500, message: "Internal Server Error" });
     }
 };
@@ -131,11 +131,11 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 //       })
 //     );
 
-//     // ✅ Return array of user objects
+//     //  Return array of user objects
 //     res.status(200).json(users);
 
 //   } catch (error) {
-//     console.error("❌ Error fetching users:", error);
+//     console.error(" Error fetching users:", error);
 //     res.status(500).json({ error: "Database query failed" });
 //   }
 // };
@@ -280,7 +280,7 @@ export const forgetPassword = async (req: Request, res: Response): Promise<void>
 
         res.status(200).json({ status: 200, message: "Password changed successfully!" });
     } catch (error) {
-        console.error("❌ Error Changing Password:", error);
+        console.error(" Error Changing Password:", error);
         res.status(500).json({ status: 500, message: "Internal Server Error" });
     }
 };
@@ -293,17 +293,17 @@ export const changePassword = async (req: Request, res: Response): Promise<void>
         const { id } = req.params; // Get user ID from URL params
         const { password } = req.body; // Get new password from request body
 
-        // ✅ Hash the new password
+        //  Hash the new password
         const newHashedPassword = await bcrypt.hash(password, 10);
 
-        // ✅ Update the password in the database
+        //  Update the password in the database
         const updateQuery = `UPDATE login SET password = ? WHERE id = ?`;
         await pool.query(updateQuery, [newHashedPassword, id]);
 
         res.status(200).json({ message: "Password updated successfully!" });
 
     } catch (error) {
-        console.error("❌ Error changing password:", error);
+        console.error(" Error changing password:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
@@ -325,11 +325,11 @@ export const uploadedFile = async (req: Request, res: Response): Promise<void> =
             return;
         }
 
-        const imagePath = req.file ? req.file.path.replace(/\\/g, "/") : null; // ✅ Store uploaded file path
+        const imagePath = req.file ? req.file.path.replace(/\\/g, "/") : null; //  Store uploaded file path
 
         res.status(200).json({ message: "Upload successful!", imagePath });
     } catch (error) {
-        console.error("❌ Error uploading file:", error);
+        console.error(" Error uploading file:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
@@ -345,15 +345,15 @@ export const addUser = async (req: Request, res: Response): Promise<void> => {
   
       console.log("Uploaded File:", req.file); // Log the uploaded file
   
-      // ✅ If no file is uploaded, imagePath should be NULL
+      //  If no file is uploaded, imagePath should be NULL
       const imagePath = req.file?.path.replace(/\\/g, "/") || null;
   
-      // ✅ Ensure required fields are present
+      //  Ensure required fields are present
       if (!name || !email || !password || !cnic || !role) {
         res.status(400).json({ status: 400, message: "Missing required fields" });
       }
   
-      // ✅ Check if user already exists
+      //  Check if user already exists
       const [existingUser]: any = await pool.query(
         "SELECT * FROM login WHERE LOWER(email) = LOWER(?)",
         [email]
@@ -362,11 +362,11 @@ export const addUser = async (req: Request, res: Response): Promise<void> => {
         res.status(400).json({ message: "User already exists!" });
       }
   
-      // ✅ Hash the password before storing it
+      //  Hash the password before storing it
       const saltRounds = 10;
       const hashedPassword = await bcrypt.hash(password, saltRounds);
   
-      // ✅ Insert user into MySQL database with hashed password & image path
+      //  Insert user into MySQL database with hashed password & image path
       const query = `
               INSERT INTO login (name, email, password, contact, cnic, address, date, role, image)
               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -385,7 +385,7 @@ export const addUser = async (req: Request, res: Response): Promise<void> => {
   
       const [result]: any = await pool.query(query, values);
   
-      // ✅ Send success response
+      //  Send success response
       res.status(201).json({
         status: 201,
         message: "User added successfully",
@@ -400,7 +400,7 @@ export const addUser = async (req: Request, res: Response): Promise<void> => {
         imagePath,
       });
     } catch (error) {
-      console.error("❌ Error adding user:", error);
+      console.error(" Error adding user:", error);
       res.status(500).json({ status: 500, message: "Internal Server Error" });
     }
   };
@@ -414,9 +414,9 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
     try {
         const { id } = req.params;  // Get user ID from URL
         const { name, email, contact, cnic, address, role } = req.body;
-        const newimage = req.file ? req.file.path : null; // ✅ Store new image if uploaded
+        const newimage = req.file ? req.file.path : null; //  Store new image if uploaded
 
-        // ✅ Check if user exists
+        //  Check if user exists
         const [user]: any = await pool.query("SELECT * FROM login WHERE id = ?", [id]);
         if (user.length === 0) {
             res.status(404).json({ status: 404, message: "User not found" });
@@ -425,7 +425,7 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
 
         let imagePath = user[0].image; // Keep existing image if no new file is uploaded
 
-        // ✅ If a new image is uploaded, delete the old file
+        //  If a new image is uploaded, delete the old file
         if (newimage) {
             if (imagePath) {
                 const oldFilePath = path.join(__dirname, "../../", imagePath);
@@ -436,7 +436,7 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
             imagePath = newimage; // Update image path
         }
 
-        // ✅ Update user in MySQL database
+        //  Update user in MySQL database
         const query = `
             UPDATE login 
             SET name = ?, email = ?, contact = ?, cnic = ?, address = ?, role = ?, image = ? 
@@ -460,7 +460,7 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
         });
 
     } catch (error) {
-        console.error("❌ Error updating user:", error);
+        console.error(" Error updating user:", error);
         res.status(500).json({ status: 500, message: "Internal Server Error" });
     }
 };
@@ -469,11 +469,11 @@ export const deleteUser = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;  // Get user ID from URL
 
-        // ✅ Update user status to 'N' instead of deleting
+        //  Update user status to 'N' instead of deleting
         const query: string = `UPDATE login SET loginStatus = 'N' WHERE id = ?`;
         console.log(`Updating user ${id} status to 'N'`);
 
-        // ✅ Execute the query
+        //  Execute the query
         const [result]: any = await pool.query(query, [id]);
 
         const [getActiveUsers]: any = await pool.query(`select * from login where loginStatus ='Y'`);
@@ -487,7 +487,7 @@ export const deleteUser = async (req: Request, res: Response) => {
         }
 
     } catch (error) {
-        console.error("❌ Error updating user status:", error);
+        console.error(" Error updating user status:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
@@ -503,7 +503,7 @@ export const getAllCustomer = async (req: Request, res: Response): Promise<void>
         const limit = !isNaN(entry) && entry > 0 ? entry : 10;
         const [customers]: any = await pool.query("SELECT * FROM customers where customerStatus = 'Y' LIMIT ?", [limit]);
 
-        // ✅ Check if customers exist
+        //  Check if customers exist
         if (customers.length === 0) {
             res.status(404).json({ status: 404, message: "No customers found" });
             return;
@@ -515,7 +515,7 @@ export const getAllCustomer = async (req: Request, res: Response): Promise<void>
 
 
     } catch (error) {
-        console.error("❌ Error fetching customers:", error);
+        console.error(" Error fetching customers:", error);
         res.status(500).json({ status: 500, message: "Internal Server Error" });
     }
 };
@@ -527,13 +527,13 @@ export const addCustomerInfo = async (req: Request, res: Response): Promise<void
     try {
         const { customerName, customerAddress, customerContact, companyName, companyAddress } = req.body;
 
-        // ✅ Ensure required fields are present
+        //  Ensure required fields are present
         if (!customerName || !customerAddress || !customerContact || !companyName || !companyAddress) {
             res.status(400).json({ status: 400, message: "Missing required fields" });
             return;
         }
 
-        // ✅ Insert customer into MySQL database
+        //  Insert customer into MySQL database
         const query = `
             INSERT INTO customers (customerName, customerAddress, customerContact, companyName, companyAddress)
             VALUES (?, ?, ?, ?, ?)
@@ -554,7 +554,7 @@ export const addCustomerInfo = async (req: Request, res: Response): Promise<void
         });
 
     } catch (error) {
-        console.error("❌ Error adding customer:", error);
+        console.error(" Error adding customer:", error);
         res.status(500).json({ status: 500, message: "Internal Server Error" });
     }
 };
@@ -568,20 +568,20 @@ export const updateCustomer = async (req: Request, res: Response): Promise<void>
         const { id } = req.params; // Get customer ID from URL params
         const { customerName, customerAddress, customerContact, companyName, companyAddress } = req.body;
 
-        // ✅ Ensure at least one field is provided for update
+        //  Ensure at least one field is provided for update
         if (!customerName && !customerAddress && !customerContact && !companyName && !companyAddress) {
             res.status(400).json({ status: 400, message: "No fields provided for update" });
             return;
         }
 
-        // ✅ Check if the customer exists
+        //  Check if the customer exists
         const [existingCustomer]: any = await pool.query("SELECT * FROM customers WHERE id = ?", [id]);
         if (existingCustomer.length === 0) {
             res.status(404).json({ status: 404, message: "Customer not found" });
             return;
         }
 
-        // ✅ Construct the dynamic update query
+        //  Construct the dynamic update query
         const updateFields = [];
         const values = [];
 
@@ -595,7 +595,7 @@ export const updateCustomer = async (req: Request, res: Response): Promise<void>
 
         const query = `UPDATE customers SET ${updateFields.join(", ")} WHERE id = ?`;
 
-        // ✅ Execute update query
+        //  Execute update query
         const [result]: any = await pool.query(query, values);
 
         res.status(200).json({
@@ -610,7 +610,7 @@ export const updateCustomer = async (req: Request, res: Response): Promise<void>
         });
 
     } catch (error) {
-        console.error("❌ Error updating customer:", error);
+        console.error(" Error updating customer:", error);
         res.status(500).json({ status: 500, message: "Internal Server Error" });
     }
 };
@@ -620,11 +620,11 @@ export const deleteCustomer = async (req: Request, res: Response): Promise<void>
     try {
         const { id } = req.params;  // Get customer ID from URL
 
-        // ✅ Update customer status to 'N' instead of deleting
+        //  Update customer status to 'N' instead of deleting
         const query: string = `UPDATE customers SET customerStatus = 'N' WHERE id = ?`;
         console.log(`Updating customer ${id} status to 'N'`);
 
-        // ✅ Execute the query
+        //  Execute the query
         const [result]: any = await pool.query(query, [id]);
 
         const [getActiveCustomers]: any = await pool.query(`select * from customers where customerStatus ='Y'`)
@@ -638,7 +638,7 @@ export const deleteCustomer = async (req: Request, res: Response): Promise<void>
         }
 
     } catch (error) {
-        console.error("❌ Error updating customer status:", error);
+        console.error(" Error updating customer status:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
@@ -677,7 +677,7 @@ export const getAttendance = async (req: Request, res: Response): Promise<void> 
 
         const attendanceData = attendance[0];
 
-        // ✅ Determine what to return
+        //  Determine what to return
         if (!attendanceData.clockIn) {
             res.status(200).json({
                 message: "Clock-in time not recorded yet",
@@ -700,7 +700,7 @@ export const getAttendance = async (req: Request, res: Response): Promise<void> 
         ]);
 
     } catch (error) {
-        console.error("❌ Error fetching attendance:", error);
+        console.error(" Error fetching attendance:", error);
         res.status(500).json({ status: 500, message: "Internal Server Error" });
     }
 };
@@ -711,7 +711,7 @@ export const getAttendance = async (req: Request, res: Response): Promise<void> 
     res: Response
   ): Promise<void> => {
     try {
-      // ✅ Fetch the latest attendance record for each user
+      //  Fetch the latest attendance record for each user
       const [attendance]: any = await pool.query(
         `SELECT 
                   userId, 
@@ -737,13 +737,13 @@ export const getAttendance = async (req: Request, res: Response): Promise<void> 
         return;
       }
   
-      // ✅ Send only the latest attendance records per user
+      //  Send only the latest attendance records per user
       res.status(200).json([
        "Latest attendance records fetched successfully",
         ...attendance,
       ]);
     } catch (error) {
-      console.error("❌ Error fetching attendance:", error);
+      console.error(" Error fetching attendance:", error);
       res.status(500).json({ status: 500, message: "Internal Server Error" });
     }
   };
@@ -758,23 +758,23 @@ export const getTimings = async (req: Request, res: Response): Promise<void> => 
  
  export const addAttendance = async (req: Request, res: Response): Promise<void> => {
      try {
-         const { id } = req.params; // ✅ Get user ID directly from params
+         const { id } = req.params; //  Get user ID directly from params
          const { date, clockIn, clockOut, attendanceStatus } = req.body;
  
-         // ✅ Validate required fields before inserting attendance
+         //  Validate required fields before inserting attendance
          if (!id || !date  || !attendanceStatus) {
              res.status(400).json({ status: 400, message: "Missing required fields" });
              return;
          }
  
-         // ✅ Check if user exists before inserting attendance
+         //  Check if user exists before inserting attendance
          const [user]: any = await pool.query(`SELECT id FROM login WHERE id = ?`, [id]);
          if (!user.length) {
              res.status(404).json({ status: 404, message: "User not found" });
              return;
          }
  
-         // ✅ Insert attendance record
+         //  Insert attendance record
          const query = `
              INSERT INTO attendance (
                  userId, date, clockIn, clockOut, day, attendanceStatus
@@ -790,7 +790,7 @@ export const getTimings = async (req: Request, res: Response): Promise<void> => 
              return;
          }
  
-         // ✅ Ensure `clockOut` is provided before calculating working hours
+         //  Ensure `clockOut` is provided before calculating working hours
          if (!clockOut) {
              res.status(200).json({
                  status: 200,
@@ -799,7 +799,7 @@ export const getTimings = async (req: Request, res: Response): Promise<void> => 
              return;
          }
  
-         // ✅ Calculate working hours
+         //  Calculate working hours
          const [timeDiffResult]: any = await pool.query(
              `SELECT 
                  LPAD(TIMESTAMPDIFF(HOUR, clockIn, clockOut), 2, '0') AS Hours,
@@ -816,7 +816,7 @@ export const getTimings = async (req: Request, res: Response): Promise<void> => 
  
          const { Hours, Minutes } = timeDiffResult[0] || { Hours: "0", Minutes: "00" };
  
-         // ✅ Format working hours correctly
+         //  Format working hours correctly
          let formattedWorkingHours = "";
          if (Hours !== "00" && Hours !== "0") {
              formattedWorkingHours += `${Hours} Hour${Hours !== "1" ? "s" : ""} `;
@@ -828,7 +828,7 @@ export const getTimings = async (req: Request, res: Response): Promise<void> => 
              formattedWorkingHours = "0 Minutes"; // Default if both are 0
          }
  
-         // ✅ Update working hours in the database
+         //  Update working hours in the database
          const [updateResult]: any = await pool.query(
              `UPDATE attendance 
               SET workingHours = ? 
@@ -841,7 +841,7 @@ export const getTimings = async (req: Request, res: Response): Promise<void> => 
              return;
          }
  
-         // ✅ Fetch and return the updated attendance record
+         //  Fetch and return the updated attendance record
          const [attendance]: any = await pool.query(
              "SELECT * FROM attendance WHERE userId = ? AND date = ?",
              [id, date]
@@ -854,7 +854,7 @@ export const getTimings = async (req: Request, res: Response): Promise<void> => 
          });
  
      } catch (error) {
-         console.error("❌ Error adding attendance:", error);
+         console.error(" Error adding attendance:", error);
          res.status(500).json({ status: 500, message: "Internal Server Error" });
      }
  };
@@ -866,13 +866,13 @@ export const markAttendance = async (req: Request, res: Response): Promise<void>
         const userId = req.params.id;
         console.log("User ID:", userId);
 
-        // ✅ Check if the user has already clocked in today
+        //  Check if the user has already clocked in today
         const [existingAttendance]: any = await pool.query(
             "SELECT userId, clockIn, clockOut FROM attendance WHERE userId = ? AND date = CURDATE()",
             [userId]
         );
 
-        // ✅ If user has NOT clocked in today, insert new clock-in record
+        //  If user has NOT clocked in today, insert new clock-in record
         if (existingAttendance.length === 0) {
             const query = `
                 INSERT INTO attendance (
@@ -887,7 +887,7 @@ export const markAttendance = async (req: Request, res: Response): Promise<void>
             return; // Stop further execution to avoid multiple responses
         }
 
-        // ✅ Fetch clock-in details to check clock-in and clock-out values
+        //  Fetch clock-in details to check clock-in and clock-out values
         const [checkAttendance]: any = await pool.query(
             "SELECT clockIn, clockOut FROM attendance WHERE userId = ? AND date = CURDATE()",
             [userId]
@@ -902,7 +902,7 @@ export const markAttendance = async (req: Request, res: Response): Promise<void>
             return;
         }
 
-        // ✅ If user has already clocked out, prevent duplicate clock-out
+        //  If user has already clocked out, prevent duplicate clock-out
             if (checkAttendance[0].clockOut !== null) {
                 res.status(400).json({
                     message: "You have already clocked out today!"
@@ -910,7 +910,7 @@ export const markAttendance = async (req: Request, res: Response): Promise<void>
                 return;
             }
 
-        // ✅ Now, update clockOut since user is actually clocking out
+        //  Now, update clockOut since user is actually clocking out
         await pool.query(
             `UPDATE attendance 
              SET clockOut = CURRENT_TIMESTAMP()
@@ -918,7 +918,7 @@ export const markAttendance = async (req: Request, res: Response): Promise<void>
             [userId]
         );
 
-        // ✅ Fetch updated clock-in & clock-out time to calculate working hours
+        //  Fetch updated clock-in & clock-out time to calculate working hours
         const [updatedAttendance]: any = await pool.query(
             "SELECT clockIn, clockOut FROM attendance WHERE userId = ? AND date = CURDATE()",
             [userId]
@@ -933,7 +933,7 @@ export const markAttendance = async (req: Request, res: Response): Promise<void>
             return;
         }
 
-        // ✅ Now, Calculate `workingHours` Correctly After `clockOut` Is Set
+        //  Now, Calculate `workingHours` Correctly After `clockOut` Is Set
         const [timeDiffResult]: any = await pool.query(
             `SELECT 
                 LPAD(TIMESTAMPDIFF(HOUR, clockIn, clockOut), 2, '0') AS Hours,
@@ -946,7 +946,7 @@ export const markAttendance = async (req: Request, res: Response): Promise<void>
 
         const { Hours, Minutes } = timeDiffResult[0] || { Hours: "0", Minutes: "00" };
 
-// ✅ Format Hours & Minutes
+//  Format Hours & Minutes
         let formattedWorkingHours = "";
         if (Hours !== "00" && Hours !== "0") {
             formattedWorkingHours += `${Hours} Hour${Hours !== "1" ? "s" : ""} `;
@@ -960,7 +960,7 @@ export const markAttendance = async (req: Request, res: Response): Promise<void>
 
 console.log(`Final Working Hours: ${formattedWorkingHours}`);
 
-// ✅ Finally, Update `workingHours` field
+//  Finally, Update `workingHours` field
     await pool.query(
     `UPDATE attendance 
      SET workingHours = ?
@@ -968,7 +968,7 @@ console.log(`Final Working Hours: ${formattedWorkingHours}`);
     [formattedWorkingHours.trim(), userId] // Trim to remove extra spaces
 );
 
-        // ✅ Fetch final attendance record
+        //  Fetch final attendance record
         const [finalAttendance]: any = await pool.query(
             `SELECT *, DATE_FORMAT(CONVERT_TZ(date, '+00:00', @@session.time_zone), '%Y-%m-%d') AS date FROM attendance WHERE userId = ? AND date = CURDATE()`,
             [userId]
@@ -980,7 +980,7 @@ console.log(`Final Working Hours: ${formattedWorkingHours}`);
         });
 
     } catch (error) {
-        console.error("❌ Error marking attendance:", error);
+        console.error(" Error marking attendance:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
@@ -999,7 +999,7 @@ export const updateAttendance = async (req: Request, res: Response): Promise<voi
         // Extract the user ID from the URL parameters
         const userId = req.params.id;
 
-        // ✅ **Calculate working hours if clockIn & clockOut exist**
+        //  **Calculate working hours if clockIn & clockOut exist**
         let workingHours = "0 Minutes"; // Default value
 
         const [timeDiffResult]: any = await pool.query(
@@ -1021,7 +1021,7 @@ export const updateAttendance = async (req: Request, res: Response): Promise<voi
 
         console.log(`🕒 Updated Working Hours: ${workingHours}`);
 
-        // ✅ **Update Attendance with Working Hours**
+        //  **Update Attendance with Working Hours**
         const query = `
             UPDATE attendance
             SET
@@ -1060,7 +1060,7 @@ export const updateAttendance = async (req: Request, res: Response): Promise<voi
         });
 
     } catch (error) {
-        console.error("❌ Error updating attendance:", error);
+        console.error(" Error updating attendance:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
@@ -1082,7 +1082,7 @@ export const deleteAttendance = async (req: Request, res: Response): Promise<voi
         }
 
     } catch (error) {
-        console.error("❌ Error deleting attendance:", error);
+        console.error(" Error deleting attendance:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
@@ -1095,7 +1095,7 @@ export const attendanceSummary = async (req: Request, res: Response): Promise<vo
     try {
         const id = req.params.id;
 
-        // ✅ Optimized single query to fetch all attendance counts
+        //  Optimized single query to fetch all attendance counts
         const [summary]: any = await pool.query(
             `SELECT 
                 COUNT(CASE WHEN attendanceStatus != 'Holiday' THEN 1 END) AS WorkingDays,
@@ -1107,11 +1107,11 @@ export const attendanceSummary = async (req: Request, res: Response): Promise<vo
             [id]
         );
 
-        // ✅ Send response with the fetched summary
+        //  Send response with the fetched summary
         res.status(200).json(summary[0]);
 
     } catch (error) {
-        console.error("❌ Error fetching attendance summary:", error);
+        console.error(" Error fetching attendance summary:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
@@ -1149,13 +1149,13 @@ export const getUsersLeaves = async (req: Request, res: Response): Promise<void>
             return;
         }
 
-        // ✅ Send attendance records with user names
+        //  Send attendance records with user names
         res.status(200).json(["Attendance records fetched successfully",
             ...attendance
         ]);
 
     } catch (error) {
-        console.error("❌ Error fetching attendance:", error);
+        console.error(" Error fetching attendance:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
@@ -1206,7 +1206,7 @@ export const addLeave = async (req: Request, res: Response): Promise<void> => {
         });
 
     } catch (error) {
-        console.error("❌ Error adding leave:", error);
+        console.error(" Error adding leave:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
@@ -1245,7 +1245,7 @@ export const authorizeLeaves = async (req: Request, res: Response): Promise<void
         );
 
         if (checkStatus.length === 0) {
-            console.log("❌ No approved leave found, skipping attendance update.");
+            console.log(" No approved leave found, skipping attendance update.");
             return;
         }
 
@@ -1264,7 +1264,7 @@ export const authorizeLeaves = async (req: Request, res: Response): Promise<void
         });
 
     } catch (error) {
-        console.error("❌ Error updating leave request:", error);
+        console.error(" Error updating leave request:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
@@ -1274,20 +1274,20 @@ export const configHolidays = async (req: Request, res: Response): Promise<void>
     try {
         const { date, holiday } = req.body;
 
-        // ✅ Ensure required fields are present
+        //  Ensure required fields are present
         if (!date || !holiday) {
             res.status(400).json({ message: "Provide both date and holiday name!" });
             return;
         }
 
-        // ✅ SQL Query to Insert Holiday
+        //  SQL Query to Insert Holiday
         const query = `INSERT INTO holidays (date, holiday) VALUES (?, ?)`;
         const values = [date, holiday];
 
-        // ✅ Execute the Insert Query
+        //  Execute the Insert Query
         const [addedHoliday]:any =  await pool.query(query, values);
 
-        // ✅ Fetch the newly added holiday with correct timezone conversion
+        //  Fetch the newly added holiday with correct timezone conversion
         const [holidays]: any = await pool.query(
             `SELECT 
                 id, 
@@ -1298,7 +1298,7 @@ export const configHolidays = async (req: Request, res: Response): Promise<void>
              LIMIT 1`, date
         );
 
-        // ✅ Send Success Response
+        //  Send Success Response
         res.status(201).json({
             status: 201,
             message: "Holiday added successfully",
@@ -1306,7 +1306,7 @@ export const configHolidays = async (req: Request, res: Response): Promise<void>
         });
 
     } catch (error) {
-        console.error("❌ Error adding holiday:", error);
+        console.error(" Error adding holiday:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
@@ -1319,13 +1319,13 @@ export const updateHoliday = async (req: Request, res: Response): Promise<void> 
         const id = req.params.id;
         const { date, holiday } = req.body;
 
-        // ✅ Ensure required fields are present
+        //  Ensure required fields are present
         if (!date || !holiday) {
             res.status(400).json({ message: "Provide both date and holiday name!" });
             return;
         }
 
-        // ✅ Check if the holiday exists before updating
+        //  Check if the holiday exists before updating
         const [existingHoliday]: any = await pool.query(
             "SELECT * FROM holidays WHERE id = ?", 
             [id]
@@ -1336,13 +1336,13 @@ export const updateHoliday = async (req: Request, res: Response): Promise<void> 
             return;
         }
 
-        // ✅ Update the holiday
+        //  Update the holiday
         const query = `UPDATE holidays SET date = ?, holiday = ? WHERE id = ?`;
         const values = [date, holiday, id];
 
         await pool.query(query, values);
 
-        // ✅ Fetch the updated holiday with correct timezone conversion
+        //  Fetch the updated holiday with correct timezone conversion
         const [updatedHoliday]: any = await pool.query(
             `SELECT id, holiday, CONVERT_TZ(date, '+00:00', @@session.time_zone) AS date 
              FROM holidays 
@@ -1355,11 +1355,11 @@ export const updateHoliday = async (req: Request, res: Response): Promise<void> 
             return;
         }
 
-        // ✅ Use correct column name & ensure date is not NULL
+        //  Use correct column name & ensure date is not NULL
         const holidayDate = updatedHoliday[0].date ? new Date(updatedHoliday[0].date) : null;
         const formattedDate = holidayDate ? holidayDate.toISOString().split("T")[0] : null;
 
-        // ✅ Send Success Response
+        //  Send Success Response
         res.status(200).json({
             status: 200,
             message: "Holiday updated successfully",
@@ -1368,7 +1368,7 @@ export const updateHoliday = async (req: Request, res: Response): Promise<void> 
         });
 
     } catch (error) {
-        console.error("❌ Error updating holiday:", error);
+        console.error(" Error updating holiday:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
@@ -1380,7 +1380,7 @@ export const deleteHoliday = async (req: Request, res: Response): Promise<void> 
     try {
         const id = req.params.id;
 
-        // ✅ Check if the holiday exists
+        //  Check if the holiday exists
         const [existingHoliday]: any = await pool.query(
             "SELECT * FROM holidays WHERE id = ?", 
             [id]
@@ -1391,11 +1391,11 @@ export const deleteHoliday = async (req: Request, res: Response): Promise<void> 
             return;
         }
 
-        // ✅ Perform Soft Delete (Set holidayStatus = 'N')
+        //  Perform Soft Delete (Set holidayStatus = 'N')
         const query = `UPDATE holidays SET holidayStatus = 'N' WHERE id = ?`;
         await pool.query(query, [id]);
 
-        // ✅ Send Success Response
+        //  Send Success Response
         res.status(200).json({
             status: 200,
             message: "Holiday deleted successfully (soft delete applied).",
@@ -1403,7 +1403,7 @@ export const deleteHoliday = async (req: Request, res: Response): Promise<void> 
         });
 
     } catch (error) {
-        console.error("❌ Error deleting holiday:", error);
+        console.error(" Error deleting holiday:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
@@ -1425,11 +1425,11 @@ export const getHolidays = async (req: Request, res: Response): Promise<void> =>
             return;
         }
 
-        // ✅ Send response as a formatted string to prevent timezone issues
+        //  Send response as a formatted string to prevent timezone issues
         res.status(200).json(holidays);
 
     } catch (error) {
-        console.error("❌ Error fetching holidays:", error);
+        console.error(" Error fetching holidays:", error);
         res.status(500).json({ status: 500, message: "Internal Server Error" });
     }
 };
@@ -1454,7 +1454,7 @@ export const getWithdrawnEmployees = async (req: Request, res: Response): Promis
         res.status(200).json(query);
 
     } catch (error) {
-        console.error("❌ Error Fetching Withdrawn Employees!:", error);
+        console.error(" Error Fetching Withdrawn Employees!:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
@@ -1470,13 +1470,13 @@ export const withdrawEmployee = async (req: Request, res: Response): Promise<voi
 
         console.log("Withdraw Request Received:", { id, withdrawReason });
 
-        // ✅ Ensure required fields are present
+        //  Ensure required fields are present
         if (!withdrawReason) {
             res.status(400).json({ message: "Provide all required fields!" });
             return;
         }
 
-        // ✅ Check if employee already exists in `withdrawals`
+        //  Check if employee already exists in `withdrawals`
         const [existingWithdrawal]: any = await pool.query(
             "SELECT * FROM withdrawals WHERE employeeId = ?",
             [id]
@@ -1487,25 +1487,25 @@ export const withdrawEmployee = async (req: Request, res: Response): Promise<voi
             return;
         }
 
-        // ✅ Insert into `withdrawals` table
+        //  Insert into `withdrawals` table
         const insertQuery = "INSERT INTO withdrawals (employeeId, withdrawReason) VALUES (?, ?)";
         const values = [id, withdrawReason];
 
-        // ✅ Execute query
+        //  Execute query
         const [result]: any = await pool.query(insertQuery, values);
 
-        // ✅ Update `status` in `login` table to 'N'
+        //  Update `status` in `login` table to 'N'
         const updateQuery = "UPDATE login SET loginStatus = 'N' WHERE id = ?";
         await pool.query(updateQuery, [id]);
 
-        // ✅ Send success response
+        //  Send success response
         res.status(201).json({
             status: 201,
             message: "Employee withdrawn successfully",
         });
 
     } catch (error) {
-        console.error("❌ Error withdrawing employee:", error);
+        console.error(" Error withdrawing employee:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
@@ -1526,7 +1526,7 @@ export const reActiveEmployee = async (req: Request, res: Response): Promise<voi
             return;
         }
 
-        // ✅ Update `withdrawals` table
+        //  Update `withdrawals` table
         const [reActiveWithdraw]: any = await pool.query(
             "UPDATE withdrawals SET withdrawStatus = 'N' WHERE employeeId = ?", 
             [id]
@@ -1552,7 +1552,7 @@ export const reActiveEmployee = async (req: Request, res: Response): Promise<voi
         }
 
     } catch (error) {
-        console.error("❌ Error Re-activating employee:", error);
+        console.error(" Error Re-activating employee:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
@@ -1572,7 +1572,7 @@ export const getCategory = async (req: Request, res: Response): Promise<void> =>
         res.status(200).send(result);
 
     } catch (error) {
-        console.error("❌ Error fetching categories:", error);
+        console.error(" Error fetching categories:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 }
@@ -1606,7 +1606,7 @@ export const createCatagory = async (req: Request, res: Response): Promise<void>
         ...displayCategory[0]
     })
     } catch (error) {
-        console.error("❌ Error Adding category:", error);
+        console.error(" Error Adding category:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
     
@@ -1620,13 +1620,13 @@ export const alterCategory = async (req: Request, res: Response): Promise<void> 
         const id = req.params.id;
         const { categoryName } = req.body;
 
-        // ✅ Ensure required fields are provided
+        //  Ensure required fields are provided
         if (!categoryName) {
             res.status(400).json({ message: "Please provide the category name!" });
             return;
         }
 
-        // ✅ Check if category exists
+        //  Check if category exists
         const [existingCategory]: any = await pool.query(
             "SELECT * FROM categories WHERE id = ?",
             [id]
@@ -1637,26 +1637,26 @@ export const alterCategory = async (req: Request, res: Response): Promise<void> 
             return;
         }
 
-        // ✅ Update category in the database
+        //  Update category in the database
         const updateQuery = `UPDATE categories SET categoryName = ? WHERE id = ?`;
         const values = [categoryName, id];
 
         await pool.query(updateQuery, values);
 
-        // ✅ Fetch updated category data
+        //  Fetch updated category data
         const [updatedCategory]: any = await pool.query(
             "SELECT * FROM categories WHERE id = ?",
             [id]
         );
 
-        // ✅ Send success response
+        //  Send success response
         res.status(200).json({
             message: "Category updated successfully!",
             ...updatedCategory[0]
         });
 
     } catch (error) {
-        console.error("❌ Error updating category:", error);
+        console.error(" Error updating category:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
@@ -1668,7 +1668,7 @@ export const deleteCategory = async (req: Request, res: Response): Promise<void>
     try {
         const id = req.params.id;
 
-        // ✅ Check if category exists and is active
+        //  Check if category exists and is active
         const [existingCategory]: any = await pool.query(
             "SELECT * FROM categories WHERE id = ? AND categoryStatus = 'Y'",
             [id]
@@ -1680,17 +1680,17 @@ export const deleteCategory = async (req: Request, res: Response): Promise<void>
         }
 
 
-        // ✅ Update `categoryStatus` from 'Y' to 'N' (Soft Delete)
+        //  Update `categoryStatus` from 'Y' to 'N' (Soft Delete)
         const updateQuery = `UPDATE categories SET categoryStatus = 'N' WHERE id = ?`;
         await pool.query(updateQuery, [id]);
 
-        // ✅ Send success response
+        //  Send success response
         res.status(200).json({
             message: "Category successfully disabled (soft deleted)!"
         });
 
     } catch (error) {
-        console.error("❌ Error disabling category:", error);
+        console.error(" Error disabling category:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
@@ -1701,28 +1701,28 @@ export const deleteCategory = async (req: Request, res: Response): Promise<void>
 // ADD PROJECT:
 export const addProject = async (req: Request, res: Response): Promise<void> => {
     try {
-        // ✅ Fetch all available categories before project creation
+        //  Fetch all available categories before project creation
         const [categories]: any = await pool.query(`SELECT categoryName FROM categories where categoryStatus = ?`, 'Y');
 
-        // ✅ Extract project details from request body
+        //  Extract project details from request body
         const { projectName, projectCategory, description, startDate, endDate } = req.body;
 
-        // ✅ Ensure required fields are present
+        //  Ensure required fields are present
         if (!projectName || !projectCategory || !description || !startDate || !endDate) {
             res.status(400).json({ message: "Please fill all the fields!", categories });
             return;
         }
 
-        // ✅ Extract category names from DB for comparison
+        //  Extract category names from DB for comparison
         const categoryList = categories.map((cat: any) => cat.categoryName.toLowerCase());
 
-        // ✅ Check if the selected category exists in the database
+        //  Check if the selected category exists in the database
         if (!categoryList.includes(projectCategory.toLowerCase())) {
             res.status(400).json({ message: "Invalid category selected!", categories });
             return;
         }
 
-        // ✅ Check if project already exists (Case-insensitive check)
+        //  Check if project already exists (Case-insensitive check)
         const [existingProject]: any = await pool.query(
             "SELECT * FROM projects WHERE LOWER(projectName) = LOWER(?)",
             [projectName]
@@ -1733,23 +1733,23 @@ export const addProject = async (req: Request, res: Response): Promise<void> => 
             return;
         }
 
-        // ✅ Insert new project
+        //  Insert new project
         const query = `INSERT INTO projects (projectName, projectCategory, description, startDate, endDate) VALUES (?, ?, ?, ?, ?)`;
         const values = [projectName, projectCategory, description, startDate, endDate];
 
         const [result]: any = await pool.query(query, values);
 
-        // ✅ Fetch all projects after insertion
+        //  Fetch all projects after insertion
         const [getProjects]: any = await pool.query("SELECT * FROM projects ORDER BY id DESC");
 
-        // ✅ Send success response with available categories and projects
+        //  Send success response with available categories and projects
         res.status(200).json({
             message: "Project added successfully!",
             ...getProjects[0]
         });
 
     } catch (error) {
-        console.error("❌ Error Adding Project:", error);
+        console.error(" Error Adding Project:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
@@ -1768,7 +1768,7 @@ export const getProjects = async (req: Request, res: Response): Promise<void> =>
         const [result]: any = await pool.query(query, values);
         res.status(200).send(result);
     } catch (error) {
-        console.error("❌ Error fetching projects:", error);
+        console.error(" Error fetching projects:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 }
@@ -1781,13 +1781,13 @@ export const alterProjectInfo = async (req: Request, res: Response): Promise<voi
         const id = req.params.id;
         const { projectName, projectCategory, description, startDate, endDate } = req.body;
 
-        // ✅ Ensure required fields are provided
+        //  Ensure required fields are provided
         if (!projectName || !projectCategory || !startDate || !endDate) {
             res.status(400).json({ message: "Please provide all required fields!" });
             return;
         }
 
-        // ✅ Check if the project exists
+        //  Check if the project exists
         const [existingProject]: any = await pool.query(
             "SELECT * FROM projects WHERE id = ?",
             [id]
@@ -1798,7 +1798,7 @@ export const alterProjectInfo = async (req: Request, res: Response): Promise<voi
             return;
         }
 
-        // ✅ Update project details
+        //  Update project details
         const updateQuery = `
             UPDATE projects 
             SET projectName = ?, projectCategory = ?, description = ?,  startDate = ?, endDate = ?
@@ -1808,20 +1808,20 @@ export const alterProjectInfo = async (req: Request, res: Response): Promise<voi
 
         await pool.query(updateQuery, values);
 
-        // ✅ Fetch updated project data
+        //  Fetch updated project data
         const [updatedProject]: any = await pool.query(
             "SELECT * FROM projects WHERE id = ?",
             [id]
         );
 
-        // ✅ Send success response
+        //  Send success response
         res.status(200).json({
             message: "Project updated successfully!",
             ...updatedProject[0]
         });
 
     } catch (error) {
-        console.error("❌ Error updating project:", error);
+        console.error(" Error updating project:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
@@ -1833,17 +1833,17 @@ export const deleteProject = async (req: Request, res: Response): Promise<void> 
     try {
         const id = req.params.id;
 
-        // ✅ Update `categoryStatus` from 'Y' to 'N' (Soft Delete)
+        //  Update `categoryStatus` from 'Y' to 'N' (Soft Delete)
         const updateQuery = `UPDATE projects SET projectStatus = 'N' WHERE id = ?`;
         await pool.query(updateQuery, [id]);
 
-        // ✅ Send success response
+        //  Send success response
         res.status(200).json({
             message: "Project successfully disabled Project!"
         });
 
     } catch (error) {
-        console.error("❌ Error disabling Project:", error);
+        console.error(" Error disabling Project:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
@@ -1863,7 +1863,7 @@ export const getAssignProject = async (req: Request, res: Response): Promise<voi
 
         res.status(200).send(result);
     } catch (error) {
-        console.error("❌ Error Fetching Assigned Projects:", error);
+        console.error(" Error Fetching Assigned Projects:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 }
@@ -1873,37 +1873,37 @@ export const getAssignProject = async (req: Request, res: Response): Promise<voi
 
 export const assignProject = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { userId, projectId } = req.params; // ✅ Get user & project IDs from URL parameters
+        const { userId, projectId } = req.params; //  Get user & project IDs from URL parameters
         console.log("User ID:", userId, "Project ID:", projectId);
 
-        // ✅ Validate required parameters
+        //  Validate required parameters
         if (!userId || !projectId) {
             res.status(400).json({ message: "Missing userId or projectId!" });
             return;
         }
 
-        // ✅ Check if User Exists
+        //  Check if User Exists
         const [user]: any = await pool.query("SELECT id FROM login WHERE id = ?", [userId]);
         if (user.length === 0) {
             res.status(404).json({ message: "User not found!" });
             return;
         }
 
-        // ✅ Check if Project Exists
+        //  Check if Project Exists
         const [project]: any = await pool.query("SELECT id FROM projects WHERE id = ?", [projectId]);
         if (project.length === 0) {
             res.status(404).json({ message: "Project not found!" });
             return;
         }
 
-        // ✅ Insert into `assignedprojects`
+        //  Insert into `assignedprojects`
         const query = `
             INSERT INTO assignedprojects (employeeId, projectId, date, assignStatus)
             VALUES (?, ?, CURDATE(), 'Y');
         `;
         await pool.query(query, [userId, projectId]);
 
-        // ✅ Fetch assigned project details (Including Names)
+        //  Fetch assigned project details (Including Names)
         const [assignedProject]: any = await pool.query(`
             SELECT ap.id, l.name AS employeeName, p.projectName, ap.date, ap.assignStatus
             FROM assignedprojects ap
@@ -1912,14 +1912,14 @@ export const assignProject = async (req: Request, res: Response): Promise<void> 
             WHERE ap.employeeId = ? AND ap.projectId = ?;
         `, [userId, projectId]);
 
-        // ✅ Send success response
+        //  Send success response
         res.status(201).json({
             message: "Project assigned successfully!",
              ...assignedProject[0] // Return the assigned project details
         });
 
     } catch (error) {
-        console.error("❌ Error Assigning Project:", error);
+        console.error(" Error Assigning Project:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
@@ -1929,10 +1929,10 @@ export const assignProject = async (req: Request, res: Response): Promise<void> 
 
 export const alterAssignProject = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { employeeId, projectId, id } = req.params;  // ✅ Assignment ID from URL
+        const { employeeId, projectId, id } = req.params;  //  Assignment ID from URL
 
 
-        // ✅ Update the assigned project
+        //  Update the assigned project
         const query = `
             UPDATE assignedprojects 
             SET employeeId = ?, projectId = ?, date = CURDATE()
@@ -1947,7 +1947,7 @@ export const alterAssignProject = async (req: Request, res: Response): Promise<v
             return;
         }
 
-        // ✅ Fetch updated assignment details
+        //  Fetch updated assignment details
         const [updatedAssignment]: any = await pool.query(`
             SELECT ap.id, l.name AS employeeName, p.projectName, ap.date, ap.assignStatus
             FROM assignedprojects ap
@@ -1961,7 +1961,7 @@ export const alterAssignProject = async (req: Request, res: Response): Promise<v
         });
 
     } catch (error) {
-        console.error("❌ Error Updating Assigned Project:", error);
+        console.error(" Error Updating Assigned Project:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
@@ -1971,9 +1971,9 @@ export const alterAssignProject = async (req: Request, res: Response): Promise<v
 
 export const deleteAssignment = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { id } = req.params; // ✅ Get assignment ID from URL
+        const { id } = req.params; //  Get assignment ID from URL
 
-        // ✅ Update assignStatus to 'N' (Soft Delete)
+        //  Update assignStatus to 'N' (Soft Delete)
         const query = `
             UPDATE assignedprojects 
             SET assignStatus = 'N' 
@@ -1986,7 +1986,7 @@ export const deleteAssignment = async (req: Request, res: Response): Promise<voi
             return;
         }
 
-        // ✅ Fetch updated project list (Only active assignments)
+        //  Fetch updated project list (Only active assignments)
         const [activeAssignments]: any = await pool.query(`
             SELECT ap.id, l.name AS employeeName, p.projectName, ap.date, ap.assignStatus
             FROM assignedprojects ap
@@ -1995,14 +1995,14 @@ export const deleteAssignment = async (req: Request, res: Response): Promise<voi
             WHERE ap.assignStatus = 'Y';
         `);
 
-        // ✅ Send success response with remaining active projects
+        //  Send success response with remaining active projects
         res.status(200).json({
             message: "Project assignment deleted successfully!",
             ...activeAssignments
         });
 
     } catch (error) {
-        console.error("❌ Error Deleting Assignment:", error);
+        console.error(" Error Deleting Assignment:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
@@ -2019,7 +2019,7 @@ export const getTodo = async (req: Request, res: Response): Promise<void> => {
         const [result]: any = await pool.query(`select * from todo where todoStatus = 'Y' LIMIT ?`, [limit]);
         res.status(200).send(result)
     } catch (error) {
-        console.error("❌ Error fetching todo!:", error);
+        console.error(" Error fetching todo!:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }    
 }
@@ -2033,13 +2033,13 @@ export const createTodo = async (req: Request, res: Response): Promise<void> => 
         const { id } = req.params;
         const { task, note, startDate, endDate, deadline } = req.body;
 
-        // ✅ Validate required fields before inserting
+        //  Validate required fields before inserting
         if (!id || !task || !startDate || !endDate || !deadline) {
             res.status(400).json({ message: "Missing required fields!" });
             return;
         }
 
-        // ✅ Check if User Exists
+        //  Check if User Exists
         const [user]: any = await pool.query("SELECT id FROM login WHERE id = ?", [id]);
         if (user.length === 0) {
             res.status(404).json({ message: "User not found!" });
@@ -2054,7 +2054,7 @@ export const createTodo = async (req: Request, res: Response): Promise<void> => 
         const values = [id, task, note || null, startDate, endDate, deadline];
         await pool.query(query, values);
 
-        // ✅ Fetch the newly created Todo
+        //  Fetch the newly created Todo
         const [createdTodo]: any = await pool.query(
             `SELECT t.id, l.name AS employeeName, t.task, t.note, t.startDate, t.endDate, t.deadline
              FROM todo t 
@@ -2070,7 +2070,7 @@ export const createTodo = async (req: Request, res: Response): Promise<void> => 
         });
 
     } catch (error) {
-        console.error("❌ Error creating todo:", error);
+        console.error(" Error creating todo:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
@@ -2106,7 +2106,7 @@ export const alterTodo = async (req: Request, res: Response): Promise<void> => {
             return;
         }
 
-        // ✅ Fetch updated todo details
+        //  Fetch updated todo details
         const [updatedTodo]: any = await pool.query(`
             SELECT t.id, l.name AS employeeName, t.task, t.note, t.startDate, t.endDate, t.deadline
             FROM todo t 
@@ -2114,14 +2114,14 @@ export const alterTodo = async (req: Request, res: Response): Promise<void> => {
             WHERE t.id = ? order by date desc`
             , [id]);
 
-        // ✅ Send success response
+        //  Send success response
         res.status(200).json({
             message: "Todo updated successfully!",
             ...updatedTodo[0]
         });
 
     } catch (error) {
-        console.error("❌ Error Updating Todo:", error);
+        console.error(" Error Updating Todo:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
@@ -2132,7 +2132,7 @@ export const deleteTodo = async (req: Request, res: Response): Promise<void> => 
     try {
         const { id } = req.params;
 
-        // ✅ Check if the todo exists
+        //  Check if the todo exists
         const [todo]: any = await pool.query(
             "SELECT * FROM todo WHERE id = ?",
             [id]
@@ -2143,14 +2143,14 @@ export const deleteTodo = async (req: Request, res: Response): Promise<void> => 
             return;
         }
 
-        // ✅ Soft delete: Update `todoStatus` to 'N'
+        //  Soft delete: Update `todoStatus` to 'N'
         const query = `UPDATE todo SET todoStatus = 'N' WHERE id = ?`;
         await pool.query(query, [id]);
 
         res.status(200).json({ message: "Todo deleted successfully!" });
 
     } catch (error) {
-        console.error("❌ Error deleting todo:", error);
+        console.error(" Error deleting todo:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
@@ -2175,7 +2175,7 @@ export const getProgress = async (req: Request, res: Response): Promise<void> =>
             result
         )
     } catch (error) {
-        console.error("❌ Error fetching progress:", error);
+        console.error(" Error fetching progress:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 
@@ -2185,37 +2185,37 @@ export const getProgress = async (req: Request, res: Response): Promise<void> =>
 
 export const addProgress = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { employeeId, projectId } = req.params; // ✅ Get IDs directly from URL parameters
+        const { employeeId, projectId } = req.params; //  Get IDs directly from URL parameters
         const { date, note } = req.body;
 
-        // ✅ Validate required fields before inserting progress
+        //  Validate required fields before inserting progress
         if (!employeeId || !projectId || !date || !note) {
             res.status(400).json({ message: "Missing required fields!" });
             return;
         }
 
-        // ✅ Check if Employee Exists
+        //  Check if Employee Exists
         const [user]: any = await pool.query("SELECT id FROM login WHERE id = ?", [employeeId]);
         if (user.length === 0) {
             res.status(404).json({ message: "User not found!" });
             return;
         }
 
-        // ✅ Check if Project Exists
+        //  Check if Project Exists
         const [project]: any = await pool.query("SELECT id FROM projects WHERE id = ?", [projectId]);
         if (project.length === 0) {
             res.status(404).json({ message: "Project not found!" });
             return;
         }
 
-        // ✅ Insert into `progress` table
+        //  Insert into `progress` table
         const query = `
             INSERT INTO progress (employeeId, projectId, date, note) 
             VALUES (?, ?, ?, ?)
         `;
         await pool.query(query, [employeeId, projectId, date, note]);
 
-        // ✅ Fetch the newly added progress
+        //  Fetch the newly added progress
         const [seeProgress]: any = await pool.query(
             `SELECT prg.employeeId, prg.projectId, l.name AS employeeName, 
                     pro.projectName, prg.note, prg.date
@@ -2233,7 +2233,7 @@ export const addProgress = async (req: Request, res: Response): Promise<void> =>
         });
 
     } catch (error) {
-        console.error("❌ Error adding progress:", error);
+        console.error(" Error adding progress:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
@@ -2272,7 +2272,7 @@ export const alterProgress = async (req: Request, res: Response): Promise<void> 
         });
 
     } catch (error) {
-        console.error("❌ Error updating progress:", error);
+        console.error(" Error updating progress:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
@@ -2283,7 +2283,7 @@ export const deleteProgress = async (req: Request, res: Response): Promise<void>
     try {
         const { id } = req.params;
 
-        // ✅ Check if the todo exists
+        //  Check if the todo exists
         const [progress]: any = await pool.query(
             "SELECT * FROM progress WHERE id = ?",
             [id]
@@ -2294,7 +2294,7 @@ export const deleteProgress = async (req: Request, res: Response): Promise<void>
             return;
         }
 
-        // ✅ Soft delete: Update `todoStatus` to 'N'
+        //  Soft delete: Update `todoStatus` to 'N'
         const query = `UPDATE progress SET progressStatus = 'N' WHERE id = ?`;
         await pool.query(query, [id]);
 
@@ -2309,7 +2309,7 @@ export const deleteProgress = async (req: Request, res: Response): Promise<void>
          });
 
     } catch (error) {
-        console.error("❌ Error deleting progress:", error);
+        console.error(" Error deleting progress:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }  
 }
@@ -2333,7 +2333,7 @@ export const getSales = async (req: Request, res: Response): Promise<void> => {
 
         res.status(200).send(result);
     } catch (error) {
-        console.error("❌ Error fetching sales:", error);
+        console.error(" Error fetching sales:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 }
@@ -2342,36 +2342,36 @@ export const getSales = async (req: Request, res: Response): Promise<void> => {
 
 export const addSales = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { customerId, projectId } = req.params; // ✅ Get IDs directly from URL parameters
+        const { customerId, projectId } = req.params; //  Get IDs directly from URL parameters
 
-        // ✅ Validate required fields before inserting sales record
+        //  Validate required fields before inserting sales record
         if (!customerId || !projectId) {
             res.status(400).json({ message: "Missing required fields!" });
             return;
         }
 
-        // ✅ Check if Customer Exists
+        //  Check if Customer Exists
         const [customer]: any = await pool.query("SELECT id FROM customers WHERE id = ?", [customerId]);
         if (customer.length === 0) {
             res.status(404).json({ message: "Customer not found!" });
             return;
         }
 
-        // ✅ Check if Project Exists
+        //  Check if Project Exists
         const [project]: any = await pool.query("SELECT id FROM projects WHERE id = ?", [projectId]);
         if (project.length === 0) {
             res.status(404).json({ message: "Project not found!" });
             return;
         }
 
-        // ✅ Insert into `sales` table
+        //  Insert into `sales` table
         const query = `
             INSERT INTO sales (customerId, projectId) 
             VALUES (?, ?)
         `;
         await pool.query(query, [customerId, projectId]);
 
-        // ✅ Fetch the newly added sales record
+        //  Fetch the newly added sales record
         const [getresult]: any = await pool.query(
             `SELECT 
                 s.id,
@@ -2394,7 +2394,7 @@ export const addSales = async (req: Request, res: Response): Promise<void> => {
         });
 
     } catch (error) {
-        console.error("❌ Error adding sales:", error);
+        console.error(" Error adding sales:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
@@ -2411,13 +2411,13 @@ export const alterSalesData = async (req: Request, res: Response): Promise<void>
 
         let result;
         if (existingSale.length > 0) {
-            // ✅ If sale exists, update it
+            //  If sale exists, update it
             const updateQuery = `UPDATE sales SET customerId = ?, projectId = ? WHERE id = ?`;
             result = await pool.query(updateQuery, [customerId, projectId, id]);
         }
         
 
-        // ✅ Fetch updated sales record
+        //  Fetch updated sales record
         const [getResult]: any = await pool.query(`
             SELECT 
                 s.id,
@@ -2438,7 +2438,7 @@ export const alterSalesData = async (req: Request, res: Response): Promise<void>
         });
 
     } catch (error) {
-        console.error("❌ Error adding/updating sales:", error);
+        console.error(" Error adding/updating sales:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
@@ -2450,7 +2450,7 @@ export const deleteSale = async (req: Request, res: Response): Promise<void> => 
     try {
         const { id } = req.params;
 
-        // ✅ Check if the todo exists
+        //  Check if the todo exists
         const [sale]: any = await pool.query(
             "SELECT * FROM sales WHERE id = ?",
             [id]
@@ -2461,7 +2461,7 @@ export const deleteSale = async (req: Request, res: Response): Promise<void> => 
             return;
         }
 
-        // ✅ Soft delete: Update `todoStatus` to 'N'
+        //  Soft delete: Update `todoStatus` to 'N'
         const query = `UPDATE sales SET salesStatus = 'N' WHERE id = ?`;
         await pool.query(query, [id]);
 
@@ -2480,7 +2480,7 @@ export const deleteSale = async (req: Request, res: Response): Promise<void> => 
          });
 
     } catch (error) {
-        console.error("❌ Error deleting progress:", error);
+        console.error(" Error deleting progress:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }  
 }
@@ -2503,7 +2503,7 @@ export const getPayments = async (req: Request, res: Response): Promise<void> =>
 
         res.status(200).send(result);
     } catch (error) {
-        console.error("❌ Error fetching payments:", error);
+        console.error(" Error fetching payments:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 }
@@ -2552,7 +2552,7 @@ export const addPayment = async (req: Request, res: Response): Promise<void> => 
         })
 
     } catch (error) {
-        console.error("❌ Error adding payment:", error);
+        console.error(" Error adding payment:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
@@ -2565,7 +2565,7 @@ export const alterPayments = async (req: Request, res: Response): Promise<void> 
         const { paymentMethod, description, amount, date } = req.body; 
         console.log("cusomterid:", customerId , " id: " , id , date, amount)
 
-        // ✅ Check if the payment record exists
+        //  Check if the payment record exists
         const [existingPayment]: any = await pool.query(`SELECT * FROM payments WHERE id = ?`, [id]);
 
         if (existingPayment.length === 0) {
@@ -2583,7 +2583,7 @@ export const alterPayments = async (req: Request, res: Response): Promise<void> 
 
         await pool.query(updateQuery, values);
 
-        // ✅ Fetch the updated payment record
+        //  Fetch the updated payment record
         const [updatedPayment]: any = await pool.query(`
             SELECT 
                 p.id, 
@@ -2603,7 +2603,7 @@ export const alterPayments = async (req: Request, res: Response): Promise<void> 
         });
 
     } catch (error) {
-        console.error("❌ Error updating payment:", error);
+        console.error(" Error updating payment:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
@@ -2613,7 +2613,7 @@ export const deletePayment = async (req: Request, res: Response): Promise<void> 
     try {
         const { id } = req.params;
 
-        // ✅ Check if the todo exists
+        //  Check if the todo exists
         const [sale]: any = await pool.query(
             "SELECT * FROM payments WHERE id = ?",
             [id]
@@ -2624,7 +2624,7 @@ export const deletePayment = async (req: Request, res: Response): Promise<void> 
             return;
         }
 
-        // ✅ Soft delete: Update `todoStatus` to 'N'
+        //  Soft delete: Update `todoStatus` to 'N'
         const query = `UPDATE payments SET paymentStatus = 'N' WHERE id = ?`;
         await pool.query(query, [id]);
 
@@ -2637,7 +2637,7 @@ export const deletePayment = async (req: Request, res: Response): Promise<void> 
          });
 
     } catch (error) {
-        console.error("❌ Error deleting progress:", error);
+        console.error(" Error deleting progress:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }  
 }
@@ -2655,7 +2655,7 @@ export const addQuotationDetail = async (req: Request, res: Response): Promise<v
             return;
         }
 
-        // ✅ Bypass TypeScript's strict session type checking
+        //  Bypass TypeScript's strict session type checking
         const sessionData: any = req.session;
 
         if (!sessionData.cart) {
@@ -2666,7 +2666,7 @@ export const addQuotationDetail = async (req: Request, res: Response): Promise<v
 
         res.status(200).json({ ...sessionData.cart[0] });
     } catch (error) {
-        console.error("❌ Error adding to cart:", error);
+        console.error(" Error adding to cart:", error);
         res.status(500).json({ message: "Internal Server Error!" });
     }
 };
@@ -2688,7 +2688,7 @@ export const addQuotation = async (req: Request, res: Response): Promise<void> =
         let invoiceId = id[0].id;
         console.log(id);
 
-        // ✅ Fetch the latest invoice number
+        //  Fetch the latest invoice number
         const [latestQuotation]: any = await pool.query("SELECT quotationNo FROM invoiceno");
         if (latestQuotation.length===0) {
             res.status(400).json({ message: "No invoice record found!" });
@@ -2696,51 +2696,51 @@ export const addQuotation = async (req: Request, res: Response): Promise<void> =
         }
 
         let QuotationNo = latestQuotation[0].quotationNo;
-        let nextInvoiceNo = QuotationNo; // ✅ Corrected Invoice Increment
+        let nextInvoiceNo = QuotationNo; //  Corrected Invoice Increment
         nextInvoiceNo++
         console.log("incremented iD:", nextInvoiceNo);
         const values: any[] = [];
         let subTotal = 0;
 
-        // ✅ Process Cart Items
+        //  Process Cart Items
         for (let item of sessionData.cart) {
             const itemSubTotal = item.QTY * item.UnitPrice;
             subTotal += itemSubTotal;
             values.push([`QT-${QuotationNo}`, item.description, item.QTY, item.UnitPrice, itemSubTotal]);
         }
 
-        // ✅ Ensure the `invoiceno` exists before inserting into `quotationdetail`
+        //  Ensure the `invoiceno` exists before inserting into `quotationdetail`
         await pool.query(
             `INSERT INTO quotationdetail (invoiceno, description, QTY, UnitPrice, subtotal) VALUES ?`,
             [values]
         );
 
-        // ✅ Validate Customer Exists
+        //  Validate Customer Exists
         const [customer]: any = await pool.query("SELECT id FROM customers WHERE id = ?", [customerId]);
         if (!customer.length) {
             res.status(404).json({ message: "Customer not found!" });
             return;
         }
 
-        // ✅ Calculate Total Amounts
+        //  Calculate Total Amounts
         const totalTax = (subTotal * taxRate) / 100;
         const totalBill = subTotal + totalTax + shippingHandling;
 
-        // ✅ Insert Quotation Data
+        //  Insert Quotation Data
         await pool.query(
             `INSERT INTO quotation (customerId, date, subTotal, taxRate, totalTax, shippingHandling, totalBill, invoiceno)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
             [customerId, date, subTotal, taxRate, totalTax, shippingHandling, totalBill, `QT-${QuotationNo}`]
         );
 
-        // ✅ Update existing invoice instead of inserting a new one
+        //  Update existing invoice instead of inserting a new one
         const [check]:any = await pool.query(
             `UPDATE invoiceno SET quotationNo = ? WHERE id = ?`, 
             [nextInvoiceNo, invoiceId ]
         );
         console.log("newinvoice: " , nextInvoiceNo , "QuotationNo: " , invoiceId)
 
-        // ✅ Fetch Updated Quotation Data
+        //  Fetch Updated Quotation Data
         const [getSavedData]: any = await pool.query(
             `SELECT q.*, c.*, i.*
             FROM quotation q
@@ -2749,7 +2749,7 @@ export const addQuotation = async (req: Request, res: Response): Promise<void> =
              WHERE q.quotationStatus = 'Y'`
         );
 
-        // ✅ Clear Session Cart
+        //  Clear Session Cart
         sessionData.cart = [];
 
         res.status(200).json({
@@ -2757,7 +2757,7 @@ export const addQuotation = async (req: Request, res: Response): Promise<void> =
                 });
 
     } catch (error) {
-        console.error("❌ Error finalizing quotation:", error);
+        console.error(" Error finalizing quotation:", error);
         res.status(500).json({ message: "Internal Server Error!" });
     }
 };
@@ -2801,14 +2801,14 @@ export const updateQuotation = async (req: Request, res: Response): Promise<void
 
         const { customerName, date, taxRate, shippingHandling, description, QTY, UnitPrice } = req.body;
 
-        // ✅ Step 1: Ensure `invoiceNo` exists
+        //  Step 1: Ensure `invoiceNo` exists
         const [existingInvoice]: any = await pool.query("SELECT * FROM invoiceno WHERE id = ?", [invoiceNo]);
         if (existingInvoice.length === 0) {
             res.status(404).json({ message: "Invoice not found!" });
             return;
         }
 
-        // ✅ Step 2: Fetch `customerId` using `customerName`
+        //  Step 2: Fetch `customerId` using `customerName`
         const [customer]: any = await pool.query("SELECT id FROM customers WHERE customerName = ?", [customerName]);
         if (customer.length === 0) {
             res.status(404).json({ message: "Customer not found!" });
@@ -2816,21 +2816,21 @@ export const updateQuotation = async (req: Request, res: Response): Promise<void
         }
         const customerId = customer[0].id;
 
-        // ✅ Step 3: Delete Existing `quotationDetail` Entries for This Invoice
+        //  Step 3: Delete Existing `quotationDetail` Entries for This Invoice
         await pool.query("DELETE FROM quotationDetail WHERE invoiceNo = ?", [invoiceNo]);
 
-        // ✅ Step 4: Insert Updated `quotationDetail` Records
-        const subtotal = QTY * UnitPrice; // ✅ Calculate subtotal
+        //  Step 4: Insert Updated `quotationDetail` Records
+        const subtotal = QTY * UnitPrice; //  Calculate subtotal
         await pool.query(
             `INSERT INTO quotationDetail (invoiceNo, description, QTY, UnitPrice, subtotal) VALUES (?, ?, ?, ?, ?)`,
             [invoiceNo, description, QTY, UnitPrice, subtotal]
         );
 
-        // ✅ Step 5: Calculate `subTotal`, `totalTax`, and `totalBill`
+        //  Step 5: Calculate `subTotal`, `totalTax`, and `totalBill`
         const totalTax = (subtotal * taxRate) / 100;
         const totalBill = subtotal + totalTax + shippingHandling;
 
-        // ✅ Step 6: Update `quotation` Table
+        //  Step 6: Update `quotation` Table
         await pool.query(
             `UPDATE quotation 
             SET customerId = ?, date = ?, subTotal = ?, taxRate = ?, totalTax = ?, shippingHandling = ?, totalBill = ?
@@ -2838,7 +2838,7 @@ export const updateQuotation = async (req: Request, res: Response): Promise<void
             [customerId, date, subtotal, taxRate, totalTax, shippingHandling, totalBill, invoiceNo]
         );
 
-        // ✅ Fetch Updated Data
+        //  Fetch Updated Data
         const [updatedData]: any = await pool.query(`
             SELECT q.customerId, c.customerName, c.customerAddress, c.customerContact, 
                    q.date, q.subTotal, q.taxRate, q.shippingHandling, q.totalBill, 
@@ -2854,7 +2854,7 @@ export const updateQuotation = async (req: Request, res: Response): Promise<void
         });
 
     } catch (error) {
-        console.error("❌ Error updating quotation:", error);
+        console.error(" Error updating quotation:", error);
         res.status(500).json({ message: "Internal Server Error!" });
     }
 };
@@ -2866,14 +2866,14 @@ export const deleteQuotation = async (req: Request, res: Response): Promise<void
     try {
         const id = req.params.id;
 
-        // ✅ Check if the quotation exists
+        //  Check if the quotation exists
         const [existingQuotation]: any = await pool.query(`SELECT * FROM quotation WHERE id = ?`, [id]);
         if (existingQuotation.length === 0) {
             res.status(404).json({ message: "No quotation found!" });
             return;
         }
 
-        // ✅ Soft delete: Update `quotationDetailStatus` & `status` to 'N'
+        //  Soft delete: Update `quotationDetailStatus` & `status` to 'N'
         const [query]: any = await pool.query(
             `UPDATE quotationdetail SET quotationDetailStatus = 'N' WHERE id = ?`, 
             [id]
@@ -2884,7 +2884,7 @@ export const deleteQuotation = async (req: Request, res: Response): Promise<void
             [id]
         );
 
-        // ✅ Check if any row was affected
+        //  Check if any row was affected
         if (query.affectedRows === 0 && query2.affectedRows === 0) {
             res.status(404).json({ message: "Quotation not found or already deleted!" });
             return;
@@ -2897,7 +2897,7 @@ export const deleteQuotation = async (req: Request, res: Response): Promise<void
         });
 
     } catch (error) {
-        console.error("❌ Error deleting quotation:", error);
+        console.error(" Error deleting quotation:", error);
         res.status(500).json({ message: "Internal Server Error!" });
     }
 };
@@ -2914,7 +2914,7 @@ export const getExpenseCategory = async (req: Request, res: Response): Promise<v
         }
         )
     } catch (error) {
-        console.error("❌ Error fetching categories:", error);
+        console.error(" Error fetching categories:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 }
@@ -2948,7 +2948,7 @@ export const createExpenseCatagory = async (req: Request, res: Response): Promis
         ...displayCategory[0]
     })
     } catch (error) {
-        console.error("❌ Error Adding expenseCategory:", error);
+        console.error(" Error Adding expenseCategory:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
     
@@ -2962,13 +2962,13 @@ export const alterExpenseCategory = async (req: Request, res: Response): Promise
         const id = req.params.id;
         const { categoryName } = req.body;
 
-        // ✅ Ensure required fields are provided
+        //  Ensure required fields are provided
         if (!categoryName) {
             res.status(400).json({ message: "Please provide the category name!" });
             return;
         }
 
-        // ✅ Check if category exists
+        //  Check if category exists
         const [existingCategory]: any = await pool.query(
             "SELECT * FROM expenseCategory WHERE id = ?",
             [id]
@@ -2979,26 +2979,26 @@ export const alterExpenseCategory = async (req: Request, res: Response): Promise
             return;
         }
 
-        // ✅ Update category in the database
+        //  Update category in the database
         const updateQuery = `UPDATE expenseCategory SET categoryName = ? WHERE id = ?`;
         const values = [categoryName, id];
 
         await pool.query(updateQuery, values);
 
-        // ✅ Fetch updated category data
+        //  Fetch updated category data
         const [updatedCategory]: any = await pool.query(
             "SELECT * FROM expenseCategory WHERE id = ?",
             [id]
         );
 
-        // ✅ Send success response
+        //  Send success response
         res.status(200).json({
             message: "Category updated successfully!",
             ...updatedCategory[0]
         });
 
     } catch (error) {
-        console.error("❌ Error updating category:", error);
+        console.error(" Error updating category:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
@@ -3010,7 +3010,7 @@ export const deleteExpenseCategory = async (req: Request, res: Response): Promis
     try {
         const id = req.params.id;
 
-        // ✅ Check if category exists and is active
+        //  Check if category exists and is active
         const [existingCategory]: any = await pool.query(
             "SELECT * FROM expenseCategory WHERE id = ? AND categoryStatus = 'Y'",
             [id]
@@ -3022,17 +3022,17 @@ export const deleteExpenseCategory = async (req: Request, res: Response): Promis
         }
 
 
-        // ✅ Update `categoryStatus` from 'Y' to 'N' (Soft Delete)
+        //  Update `categoryStatus` from 'Y' to 'N' (Soft Delete)
         const updateQuery = `UPDATE expenseCategory SET categoryStatus = 'N' WHERE id = ?`;
         await pool.query(updateQuery, [id]);
 
-        // ✅ Send success response
+        //  Send success response
         res.status(200).json({
             message: "Category successfully disabled (soft deleted)!"
         });
 
     } catch (error) {
-        console.error("❌ Error disabling category:", error);
+        console.error(" Error disabling category:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
@@ -3053,7 +3053,7 @@ export const getExpense = async (req: Request, res: Response): Promise<void> => 
 
         res.status(200).send(result)
     } catch (error) {
-        console.error("❌ Error fetching expense List:", error);
+        console.error(" Error fetching expense List:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 }
@@ -3079,7 +3079,7 @@ export const addExpense = async (req: Request, res: Response): Promise<void> => 
         })
 
     } catch (error) {
-        console.error("❌ Error adding expense:", error);
+        console.error(" Error adding expense:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 }
@@ -3116,7 +3116,7 @@ export const updateExpense = async (req: Request, res: Response): Promise<void> 
           });
 
     } catch (error) {
-        console.error("❌ Error updating expense:", error);
+        console.error(" Error updating expense:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
@@ -3146,7 +3146,7 @@ export const deleteExpense = async (req: Request, res: Response): Promise<void> 
         });
 
     } catch (error) {
-        console.error("❌ Error disabling category:", error);
+        console.error(" Error disabling category:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 }
@@ -3165,7 +3165,7 @@ export const getSalaryInfo = async (req: Request, res: Response): Promise<void> 
 
         res.status(200).send(result)
     } catch (error) {
-        console.error("❌ Error fetching information:", error);
+        console.error(" Error fetching information:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 }
@@ -3202,7 +3202,7 @@ export const configureSalary = async (req: Request, res: Response): Promise<void
         });
 
     } catch (error) {
-        console.error("❌ Error adding information:", error);
+        console.error(" Error adding information:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
@@ -3215,7 +3215,7 @@ export const addCalendarSession = async (req: Request, res: Response): Promise<v
     try {
         const { startingMonth } = req.body;
 
-        // ✅ Extract Year
+        //  Extract Year
         const [extractYear]: any = await pool.query(`SELECT YEAR(?) AS year`, [startingMonth]);
         const year = extractYear[0]?.year;
 
@@ -3238,7 +3238,7 @@ export const addCalendarSession = async (req: Request, res: Response): Promise<v
             return;
         }
 
-        // ✅ Loop to Insert 12 Months
+        //  Loop to Insert 12 Months
         for (let i = 0; i < 12; i++) {
             const currentMonth = (monthNum + i - 1) % 12 + 1; // Get month number (1-12)
             const monthName = Object.keys(monthMap).find(key => monthMap[key] === currentMonth); // Get month name
@@ -3252,7 +3252,7 @@ export const addCalendarSession = async (req: Request, res: Response): Promise<v
         res.status(200).json({ message: "12-month calendar session added successfully!" });
 
     } catch (error) {
-        console.error("❌ Error adding information:", error);
+        console.error(" Error adding information:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
@@ -3342,7 +3342,7 @@ export const salaryCycle = async (req: Request, res: Response): Promise<void> =>
         res.status(200).json({ message: "Salary Cycle processed successfully for all users!" });
 
     } catch (error) {
-        console.error("❌ Error processing Salary Cycle:", error);
+        console.error(" Error processing Salary Cycle:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
@@ -3360,7 +3360,7 @@ export const getTimeConfigured = async (req: Request, res: Response): Promise<vo
 
         res.status(200).send(query)
        } catch (error) {
-        console.error("❌ Error Fetching Time:", error);
+        console.error(" Error Fetching Time:", error);
         res.status(500).json({ message: "Internal Server Error" });
        }
 }
@@ -3386,7 +3386,7 @@ export const configureTime = async (req: Request, res: Response): Promise<void> 
             ...getEnty[0]
         })
     } catch (error) {
-        console.error("❌ Error configuring time:", error);
+        console.error(" Error configuring time:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 }
@@ -3417,7 +3417,7 @@ export const updateTime = async (req: Request, res: Response): Promise<void> => 
         })
 
     } catch (error) {
-        console.error("❌ Error updating time:", error);
+        console.error(" Error updating time:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 }
@@ -3439,7 +3439,7 @@ export const deleteTime = async (req: Request, res: Response): Promise<void> => 
             ...query[0]
         })
     } catch (error) {
-        console.error("❌ Error deleting time:", error);
+        console.error(" Error deleting time:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 }
@@ -3502,7 +3502,7 @@ export const withdrawSalary = async (req: Request, res: Response): Promise<void>
         });
 
     } catch (error) {
-        console.error("❌ Error in taking Withdraw:", error);
+        console.error(" Error in taking Withdraw:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
@@ -3577,7 +3577,7 @@ export const refundAmount = async (req: Request, res: Response): Promise<void> =
         });
 
     } catch (error) {
-        console.error("❌ Error in Refunding Amount:", error);
+        console.error(" Error in Refunding Amount:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
@@ -3617,7 +3617,7 @@ export const salesReport = async (req: Request, res: Response): Promise<void> =>
         });
 
     } catch (error) {
-        console.error("❌ Error fetching sales:", error);
+        console.error(" Error fetching sales:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
@@ -3661,7 +3661,7 @@ export const progressReport = async (req: Request, res: Response): Promise<void>
         });
 
     } catch (error) {
-        console.error("❌ Error fetching progress:", error);
+        console.error(" Error fetching progress:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
@@ -3719,7 +3719,7 @@ export const attendanceReport = async (req: Request, res: Response): Promise<voi
         res.status(200).json(result);
 
     } catch (error) {
-        console.error("❌ Error fetching attendance:", error);
+        console.error(" Error fetching attendance:", error);
         res.status(500).json({ status: 500, message: "Internal Server Error" });
     }
 };
@@ -3759,7 +3759,7 @@ export const paymentReport = async (req: Request, res: Response): Promise<void> 
 
         res.status(200).send(result)
     } catch (error) {
-        console.error("❌ Error fetching payments:", error);
+        console.error(" Error fetching payments:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 }
@@ -3788,7 +3788,7 @@ export const expenseReport = async (req: Request, res: Response): Promise<void> 
 
         res.status(200).send(result)
     } catch (error) {
-        console.error("❌ Error fetching expense List:", error);
+        console.error(" Error fetching expense List:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 }
@@ -3796,6 +3796,41 @@ export const expenseReport = async (req: Request, res: Response): Promise<void> 
 
 
 //it Ends here!
+
+
+
+export const searchPosition = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { employeeId, position } = req.query;
+
+    if (!employeeId && !position) {
+      res.status(400).json({ message: 'Please provide employeeId or position to search.' });
+      return;
+    }
+
+    let query = "SELECT * FROM `position` WHERE status = 'Y'";
+    const params: any[] = [];
+
+    if (employeeId) {
+      query += ' AND employeeId = ?';
+      params.push(employeeId);
+    }
+
+    if (position) {
+      query += ' AND `position` LIKE ?';
+      params.push(`%${position}%`);
+    }
+
+    const [rows] = await pool.query(query, params);
+
+    res.json(rows);
+  } catch (err) {
+    console.error('Error during search:', err);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+};
+
+
 
 
 
@@ -3807,11 +3842,11 @@ export const addPosition = async (req: Request, res: Response): Promise<void> =>
             return;
         }
 
-        const [insertQuery]:any = await pool.query(`INSERT INTO position (employeeId, position) VALUES (?, ?)`, [employeeId, position]);
+        const [insertQuery]:any = await pool.query("INSERT INTO `position` (employeeId, `position`) VALUES (?, ?)", [employeeId, position]);
 
         const id = insertQuery.insertId;
 
-        const [result]: any = await pool.query(`SELECT * FROM positions WHERE id = ?`, [id]);
+        const [result]: any = await pool.query(`SELECT * FROM position WHERE id = ?`, [id]);
         if (result.length === 0) {
             res.status(404).send({ message: "Position not found!" });
             return;
@@ -3825,7 +3860,7 @@ export const addPosition = async (req: Request, res: Response): Promise<void> =>
         }   
         
     } catch (error) {
-        console.error("❌ Error adding position of the user:", error);
+        console.error(" Error adding position of the user:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 }
@@ -3853,7 +3888,7 @@ export const getUserById = async (req: Request, res: Response): Promise<void> =>
         res.status(200).send({...user[0]});
 
     } catch (error) {
-        console.error("❌ Error fetching user by ID:", error);
+        console.error(" Error fetching user by ID:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 }
@@ -3879,7 +3914,7 @@ export const updatePosition = async (req: Request, res: Response): Promise<void>
         }
 
         const [updateQuery]: any = await pool.query(
-            `UPDATE position SET employeeId = ?, position = ? WHERE id = ?`, 
+            "UPDATE `position` SET employeeId = ?, `position` = ? WHERE id = ?", 
             [employeeId, position, id]
         );  
         if (updateQuery.affectedRows === 0) {
@@ -3891,7 +3926,7 @@ export const updatePosition = async (req: Request, res: Response): Promise<void>
         res.status(200).send({...result[0], message: "Position updated successfully!"});
 
     } catch (error) {
-        console.error("❌ Error updating position:", error);
+        console.error(" Error updating position:", error);
         res.status(500).json({ message: "Internal Server Error" });
         
     }
@@ -3916,7 +3951,7 @@ export const deletePosition = async (req: Request, res: Response): Promise<void>
             return;
         }
 
-        const [deleteQuery]: any = await pool.query(`update position set status = 'N' WHERE id = ?`, [id]);
+        const [deleteQuery]: any = await pool.query("update `position` set status = 'N' WHERE id = ?", [id]);
         if (deleteQuery.affectedRows === 0) {
             res.status(500).send({ message: "Failed to delete position!" });
             return;
@@ -3925,7 +3960,695 @@ export const deletePosition = async (req: Request, res: Response): Promise<void>
         res.status(200).send({ message: "Position deleted successfully!" });
 
     } catch (error) {
-        console.error("❌ Error deleting position:", error);
+        console.error(" Error deleting position:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
+
+
+
+
+
+
+export const getUserPosition = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const entry = parseInt(req.query.entry as string) || 10;
+        const page = parseInt(req.query.page as string) || 1;
+
+        const limit = Math.max(1, entry);
+        const offset = (Math.max(1, page) - 1) * limit;        
+
+
+        const [result]: any = await pool.query(`select * from position where status = 'Y' limit ? offset ?`, [limit, offset]);
+        if (result.length === 0) {
+            res.status(404).send({ message: "No positions found!" });
+            return;
+        }
+
+        res.status(200).send(result);
+
+
+    } catch (error) {
+        console.error(" Error fetching users Positions:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+}
+
+
+
+
+
+export const addSupplier = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const {supplierName, supplierAddress, supplierContact, supplierEmail} = req.body;
+
+        if(!supplierName|| !supplierAddress || !supplierContact ||  !supplierEmail){
+            res.send({message: "Provide All fields!"});
+            return;
+        }
+
+        const [query]: any  = await pool.query(`insert into supplier (supplierName, supplierAddress, supplierContact, supplierEmail) values (? ,?, ?, ?)`, [supplierName, supplierAddress, supplierContact, supplierEmail]);
+
+        const id  = query.insertId;
+
+        if(!id){
+            res.send({message: "Failed to add Supplier!"});
+            return;
+        }
+
+        const [result] : any = await pool.query(`select * from supplier where id = ?`, [id]);
+
+
+        res.status(200).send({...result[0]});
+    } catch (error) {
+        console.error(" Error adding Supplier:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+}
+
+
+
+
+
+
+export const getSuppliers = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const entry = parseInt(req.query.entry as string) || 10;
+        const page = parseInt(req.query.page as string) || 1;
+
+        const limit = Math.max(1, entry);
+        const offset = (Math.max(1, page) - 1) * limit;        
+
+
+        const [result]: any = await pool.query(`select * from supplier where supplierStatus = 'Y' limit ? offset ?`, [limit, offset]);
+        if (result.length === 0) {
+            res.status(404).send({ message: "No positions found!" });
+            return;
+        }
+
+        res.status(200).send(result);
+
+
+    } catch (error) {
+        console.error(" Error fetching users Positions:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+}
+
+
+
+
+
+
+
+export const updateSupplier = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const id = req.params.id;
+        const { supplierName, supplierAddress, supplierContact, supplierEmail } = req.body;
+
+        if (!id || !supplierName || !supplierAddress || !supplierContact || !supplierEmail) {
+            res.status(400).send({ message: "Please provide all fields!" });
+            return;
+        }   
+
+        const [existingPosition]: any = await pool.query(`SELECT * FROM supplier WHERE id = ?`, [id]);
+        if (existingPosition.length === 0) {
+            res.status(404).send({ message: "Position not found!" });
+            return;
+        }
+
+        const [updateQuery]: any = await pool.query(
+            "UPDATE supplier SET supplierName = ?, supplierAddress = ?, supplierContact = ?, supplierEmail = ? WHERE id = ?", 
+            [supplierName, supplierAddress, supplierContact, supplierEmail, id]
+        );  
+        if (updateQuery.affectedRows === 0) {
+            res.status(500).send({ message: "Failed to update supplier info!" });
+            return;
+        }
+        const [result]: any = await pool.query(`SELECT * FROM supplier WHERE id = ?`, [id]);
+
+        res.status(200).send({...result[0], message: "Supplier updated successfully!"});
+
+    } catch (error) {
+        console.error(" Error updating Supplier:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+}
+
+
+
+
+
+
+export const deleteSupplier = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const id = req.params.id;
+
+        if (!id) {
+            res.status(400).send({ message: "Supplier ID is required!" });
+            return;
+        }   
+
+        const [existingSupplier]: any = await pool.query(`SELECT * FROM supplier WHERE id = ?`, [id]);
+        if (existingSupplier.length === 0) {
+            res.status(404).send({ message: "Supplier not found!" });
+            return;
+        }
+
+        const [deleteQuery]: any = await pool.query("update supplier set supplierStatus = 'N' WHERE id = ?", [id]);
+        if (deleteQuery.affectedRows === 0) {
+            res.status(500).send({ message: "Failed to delete Supplier!" });
+            return;
+        }
+
+        res.status(200).send({ message: "Supplier deleted successfully!" });
+
+    } catch (error) {
+        console.error(" Error deleting Supplier:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+
+
+
+
+
+export const getSupplierById = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const userId = req.params.id;
+
+        if (!userId) {
+            res.status(400).send({ message: "User ID is required!" });
+            return;
+        } 
+
+        const [user]: any = await pool.query(`SELECT * FROM supplier WHERE id = ? and supplierStatus = 'Y'`, [userId]);
+        if (user.length === 0) {    
+            res.status(404).send({ message: "User not found!" });
+            return;
+        }
+
+
+        res.status(200).send({...user[0]});
+
+    } catch (error) {
+        console.error(" Error fetching user by ID:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+}
+
+
+
+
+
+
+
+
+
+export const searchSupplier = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const {
+      supplierName,
+      supplierAddress,
+      supplierContact,
+      supplierEmail
+    } = req.query;
+
+    if (
+      !supplierName &&
+      !supplierAddress &&
+      !supplierContact &&
+      !supplierEmail
+    ) {
+      res.status(400).json({ message: 'Please provide at least one search field.' });
+      return;
+    }
+
+    let query = 'SELECT * FROM `supplier` WHERE 1=1';
+    const params: any[] = [];
+
+    if (supplierName) {
+      query += ' AND supplierName LIKE ?';
+      params.push(`%${supplierName}%`);
+    }
+
+    if (supplierAddress) {
+      query += ' AND supplierAddress LIKE ?';
+      params.push(`%${supplierAddress}%`);
+    }
+
+    if (supplierContact) {
+      query += ' AND supplierContact LIKE ?';
+      params.push(`%${supplierContact}%`);
+    }
+
+    if (supplierEmail) {
+      query += ' AND supplierEmail LIKE ?';
+      params.push(`%${supplierEmail}%`);
+    }
+
+    const [rows] = await pool.query(query, params);
+
+    res.json(rows);
+  } catch (err) {
+    console.error('Error searching suppliers:', err);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+};
+
+
+
+
+
+
+export const addOvertime = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { employeeId, time, date, description } = req.body;
+
+        if (!employeeId || !time || !date || !description) {
+            res.status(400).send({ message: "Please provide all fields!" });
+            return;
+        }  
+
+        const [todayOvertime]: any = await pool.query(`select * from overtime where employeeId = ? and date = CURRENT_DATE() and status = 'Y'`, [employeeId]);
+
+        if (todayOvertime.length > 0) {
+            res.send({ message: "You have already added overtime for this employee today!" });
+            return;
+        }
+
+        const [query]: any = await pool.query(`insert into overtime (employeeId, time, date, description) values (?, ?, ?, ?)`, [employeeId, time, date, description]);
+
+        const id = query.insertId;
+
+        const [result]: any = await pool.query(`select * from overtime where status = 'Y' and id = ?`, [id]);
+
+        res.status(200).send(result);
+
+    } catch (error) {
+        console.error('Error searching suppliers:', error);
+        res.status(500).json({ message: 'Internal server error.' });   
+    }
+}
+
+
+
+
+
+
+export const getOvertime = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const entry = parseInt(req.query.entry as string) || 10;
+        const page = parseInt(req.query.page as string) || 1;
+
+        const limit = Math.max(1, entry);
+        const offset = (Math.max(1, page) - 1) * limit;        
+
+
+        const [result]: any = await pool.query(`SELECT o.*, l.*  FROM overtime o join  login l on  l.id = o.employeeId WHERE  o.status = 'Y' limit ? offset ?`, [limit, offset]);
+        if (result.length === 0) {
+            res.status(404).send({ message: "No overtime for the employee found!" });
+            return;
+        }
+
+        res.status(200).send(result);
+
+
+    } catch (error) {
+        console.error(" Error fetching users overtime:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+}
+
+
+
+
+
+export const updateOvertime = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const id = req.params.id;
+        const { employeeId, time, date, description } = req.body;
+
+        if (!id || !employeeId || !time || !date || !description) {
+            res.status(400).send({ message: "Please provide all fields!" });
+            return;
+        }   
+
+        const [existingOvertime]: any = await pool.query(`SELECT * FROM overtime WHERE id = ?`, [id]);
+        if (existingOvertime.length === 0) {
+            res.status(404).send({ message: "Position not found!" });
+            return;
+        }
+
+        const [updateQuery]: any = await pool.query(
+            "UPDATE overtime SET employeeId = ?, time = ?, date = ?, description = ? WHERE id = ?", 
+            [employeeId, time, date, description, id]
+        );  
+        if (updateQuery.affectedRows === 0) {
+            res.status(500).send({ message: "Failed to update overtime of user!" });
+            return;
+        }
+        const [result]: any = await pool.query(`SELECT * FROM overtime WHERE id = ?`, [id]);
+
+        res.status(200).send({...result[0], message: "Overtime updated successfully!"});
+
+    } catch (error) {
+        console.error(" Error updating overtime:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+}
+
+
+
+
+
+export const deleteOvertime = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const id = req.params.id;
+
+        if (!id) {
+            res.status(400).send({ message: "Overtime ID is required!" });
+            return;
+        }   
+
+        const [existingOvertime]: any = await pool.query(`SELECT * FROM overtime WHERE id = ?`, [id]);
+        if (existingOvertime.length === 0) {
+            res.status(404).send({ message: "Existing Overtime not found!" });
+            return;
+        }
+
+        const [deleteQuery]: any = await pool.query("update overtime set status = 'N' WHERE id = ?", [id]);
+        if (deleteQuery.affectedRows === 0) {
+            res.status(500).send({ message: "Failed to delete overtime!" });
+            return;
+        }
+
+        res.status(200).send({ message: "Overtime deleted successfully!" });
+
+    } catch (error) {
+        console.error(" Error deleting overtime:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+
+
+
+
+
+
+export const getOvertimeById = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const userId = req.params.id;
+
+        if (!userId) {
+            res.status(400).send({ message: "Employee ID is required!" });
+            return;
+        } 
+
+        const [user]: any = await pool.query(`SELECT o.*, l.*  FROM overtime o join  login l on  l.id = o.employeeId WHERE o.id = ? and status = 'Y'`, [userId]);
+        if (user.length === 0) {    
+            res.status(404).send({ message: "User not found!" });
+            return;
+        }
+
+
+        res.status(200).send({...user[0]});
+
+    } catch (error) {
+        console.error(" Error fetching user by ID:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+}
+
+
+
+
+
+
+export const searchOvertime = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { employeeId, time, date, description } = req.query;
+
+    if (!employeeId && !time && !date && !description) {
+      res.status(400).json({ message: 'Please provide at least one search parameter.' });
+      return;
+    }
+
+    let query = "SELECT o.*, l.*  FROM overtime o join  login l on  l.id = o.employeeId WHERE status = 'Y'";
+    const params: any[] = [];
+
+    if (employeeId) {
+      query += ' AND employeeId = ?';
+      params.push(employeeId);
+    }
+
+    if (time) {
+      query += ' AND time = ?';
+      params.push(time);
+    }
+
+    if (date) {
+      query += ' AND `date` = ?';
+      params.push(date);
+    }
+
+    if (description) {
+      query += ' AND description LIKE ?';
+
+      params.push(`%${description}%`);
+    }
+
+    const [rows]: any = await pool.query(query, params);
+
+    res.status(200).json(rows);
+  } catch (error) {
+    console.error('Error searching overtime:', error);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+};
+
+
+
+
+
+
+export const addLoan = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const {employeeId, loanAmount, installments, paidAmount, remainingAmount, applyDate, loanStatus} = req.body;
+         if (!employeeId || !loanAmount || !installments || !paidAmount || !remainingAmount || !applyDate || !loanStatus) {
+            res.status(400).send({ message: "Please provide all fields!" });
+            return;
+        } 
+
+        const [query]: any = await pool.query(`insert into loan (employeeId, loanAmount, installments, paidAmount, remainingAmount, applyDate, loanStatus) values (?, ?, ?, ?, ?, ?, ?)`, [employeeId, loanAmount, installments, paidAmount, remainingAmount, applyDate, loanStatus]);
+        const id = query.insertId;
+
+        const [result]: any = await pool.query(`select * from loan where id = ?`, [id]);
+        console.log(id, result);
+        res.status(200).send({...result[0]});
+    } catch (error) {
+        console.error('Error searching overtime:', error);
+        res.status(500).json({ message: 'Internal server error.' });
+    }
+}
+
+
+
+
+export const getLoan = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const entry = parseInt(req.query.entry as string) || 10;
+        const page = parseInt(req.query.page as string) || 1;
+
+        const limit = Math.max(1, entry);
+        const offset = (Math.max(1, page) - 1) * limit;        
+
+
+        const [result]: any = await pool.query(`SELECT lo.*, l.*  FROM loan lo join  login l on  l.id = lo.employeeId WHERE  lo.status = 'Y' limit ? offset ?`, [limit, offset]);
+        if (result.length === 0) {
+            res.status(404).send({ message: "No loan for the employee found!" });
+            return;
+        }
+
+        res.status(200).send(result);
+
+
+    } catch (error) {
+        console.error(" Error fetching users overtime:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+}
+
+
+
+
+
+
+export const updateLoan = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const id = req.params.id;
+        const { employeeId, loanAmount, installments, paidAmount, remainingAmount, applyDate, loanStatus } = req.body;
+
+        if (!id || !employeeId || !loanAmount || !installments || !paidAmount || !remainingAmount || !applyDate || !loanStatus) {
+            res.status(400).send({ message: "Please provide all fields!" });
+            return;
+        }   
+
+        const [existingloan]: any = await pool.query(`SELECT * FROM loan WHERE id = ?`, [id]);
+        if (existingloan.length === 0) {
+            res.status(404).send({ message: "Loan for this user not found!" });
+            return;
+        }
+
+        const [updateQuery]: any = await pool.query(
+              `UPDATE loan 
+                SET employeeId = ?, 
+                loanAmount = ?, 
+                installments = ?, 
+                paidAmount = ?, 
+                remainingAmount = ?, 
+                applyDate = ?, 
+                loanStatus = ?
+                WHERE id = ?`,
+            [employeeId, loanAmount, installments, paidAmount, remainingAmount, applyDate, loanStatus, id]
+        );
+
+        if (updateQuery.affectedRows === 0) {
+            res.status(500).send({ message: "Failed to update loan of user!" });
+            return;
+        }
+
+        const [result]: any = await pool.query(`SELECT * FROM loan WHERE id = ?`, [id]);
+
+        res.status(200).send({...result[0], message: "Loan updated successfully!"});
+
+    } catch (error) {
+        console.error(" Error updating overtime:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+}
+
+
+
+
+
+export const deleteLoan = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const id = req.params.id;
+
+        if (!id) {
+            res.status(400).send({ message: "Loan ID is required!" });
+            return;
+        }   
+
+        const [existingLoan]: any = await pool.query(`SELECT * FROM loan WHERE id = ?`, [id]);
+        if (existingLoan.length === 0) {
+            res.status(404).send({ message: "loan not found!" });
+            return;
+        }
+
+        const [deleteQuery]: any = await pool.query("update loan set status = 'N' WHERE id = ?", [id]);
+        if (deleteQuery.affectedRows === 0) {
+            res.status(500).send({ message: "Failed to delete loan!" });
+            return;
+        }
+
+        res.status(200).send({ message: "loan deleted successfully!" });
+
+    } catch (error) {
+        console.error(" Error deleting loan :", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+};
+
+
+
+
+
+
+export const searchLoan = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const {
+      id,
+      employeeId,
+      loanAmount,
+      installments,
+      paidAmount,
+      remainingAmount,
+      applyDate,
+      loanStatus
+    } = req.query;
+
+    if (
+      !id &&
+      !employeeId &&
+      !loanAmount &&
+      !installments &&
+      !paidAmount &&
+      !remainingAmount &&
+      !applyDate &&
+      !loanStatus
+    ) {
+      res.status(400).json({ message: 'Please provide at least one search parameter.' });
+      return;
+    }
+
+    let query = "SELECT lo.*, l.* FROM loan lo JOIN login l ON l.id = lo.employeeId WHERE lo.status = 'Y' AND 1=1";
+    const params: any[] = [];
+
+    if (id) {
+      query += ' AND id = ?';
+      params.push(id);
+    }
+
+    if (employeeId) {
+      query += ' AND employeeId = ?';
+      params.push(employeeId);
+    }
+
+    if (loanAmount) {
+      query += ' AND loanAmount = ?';
+      params.push(loanAmount);
+    }
+
+    if (installments) {
+      query += ' AND installments = ?';
+      params.push(installments);
+    }
+
+    if (paidAmount) {
+      query += ' AND paidAmount = ?';
+      params.push(paidAmount);
+    }
+
+    if (remainingAmount) {
+      query += ' AND remainingAmount = ?';
+      params.push(remainingAmount);
+    }
+
+    if (applyDate) {
+      query += ' AND applyDate = ?';
+      params.push(applyDate);
+    }
+
+    if (loanStatus) {
+      query += ' AND status = ?';
+      params.push(loanStatus);
+    }
+
+    const [rows]: any = await pool.query(query, params);
+
+    res.status(200).json(rows);
+  } catch (error) {
+    console.error('Error searching loan:', error);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+};
+
+
+
+
+
+
