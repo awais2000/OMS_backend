@@ -4646,9 +4646,3 @@ export const searchLoan = async (req: Request, res: Response): Promise<void> => 
     res.status(500).json({ message: 'Internal server error.' });
   }
 };
-
-
-
-
-
-
