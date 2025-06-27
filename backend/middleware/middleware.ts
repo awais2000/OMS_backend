@@ -1,12 +1,12 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 
-// ✅ Define Custom User Type for Request
+//  Define Custom User Type for Request
 interface AuthenticatedRequest extends Request {
     user?: { email: string; role: string };
 }
 
-// ✅ Fix: Ensure Proper `next()` Usage
+//  Fix: Ensure Proper `next()` Usage
 export const authenticateToken = (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
     const token = req.header("Authorization");
 
@@ -17,18 +17,18 @@ export const authenticateToken = (req: AuthenticatedRequest, res: Response, next
 
     try {
         const decoded = jwt.verify(token, "your_secret_key") as { email: string; role: string };
-        req.user = decoded; // ✅ Attach user data to request
-        next(); // ✅ Ensure `next()` is called
+        req.user = decoded; 
+        next(); 
     } catch (error) {
         res.status(403).json({ status: 403, message: "Invalid Token" });
     }
 };
 
-// ✅ Fix: Ensure `next()` is called properly
+//  Fix: Ensure `next()` is called properly
 export const isAdmin = (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
     if (!req.user || req.user.role !== "admin") {
         res.status(403).json({ status: 403, message: "Access Denied. Admins Only." });
         return;
     }
-    next(); // ✅ Ensure `next()` is called
+    next(); 
 };

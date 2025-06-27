@@ -3,7 +3,6 @@ import session from "express-session";
 
 const app = express();
 
-// ✅ Configure session middleware
 app.use(session({
     secret: "your_secret_key",
     resave: false,

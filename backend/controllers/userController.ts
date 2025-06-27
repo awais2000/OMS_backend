@@ -1,7 +1,6 @@
 import { Request, Response } from "express";
 import bcrypt from "bcrypt";
 import pool from "../database/db"; 
-import { PoolConnection } from "mysql2/typings/mysql/lib/PoolConnection";
 
 
 
@@ -11,7 +10,7 @@ export const changePassword = async (
     res: Response
   ): Promise<void> => {
     try {
-      const { id } = req.params; // ✅ Corrected: Extract `id` properly
+      const { id } = req.params; //  Corrected: Extract `id` properly
       const { oldPassword, newPassword } = req.body;
   
       if (!id || !oldPassword || !newPassword) {
@@ -59,7 +58,7 @@ export const changePassword = async (
         .status(200)
         .json({ status: 200, message: "Password changed successfully!" });
     } catch (error) {
-      console.error("❌ Error Changing Password:", error);
+      console.error(" Error Changing Password:", error);
       res.status(500).json({ status: 500, message: "Internal Server Error" });
     }
   };
@@ -72,9 +71,9 @@ export const getAttendance = async (req: Request, res: Response) => {
     try {
         
 
-       const userId= req.params.id; // ✅ Get user ID from URL
+       const userId= req.params.id; //  Get user ID from URL
         console.log(userId);
-        // ✅ Check if the user exists in the `login` table
+        //  Check if the user exists in the `login` table
         const [user]: any = await pool.query(
             "SELECT id, name, email FROM login WHERE id = ?",
             [userId]
@@ -85,7 +84,7 @@ export const getAttendance = async (req: Request, res: Response) => {
             return;
         }
 
-        // ✅ Fetch attendance records for the user
+        //  Fetch attendance records for the user
         const [attendance]: any = await pool.query(
             "SELECT * FROM attendance WHERE userId = ? ORDER BY date DESC",
             [userId]
@@ -96,7 +95,7 @@ export const getAttendance = async (req: Request, res: Response) => {
             return;
         }
 
-        // ✅ Send attendance records
+        //  Send attendance records
         res.status(200).json({
             status: 200,
             message: "Attendance records fetched successfully",
@@ -104,7 +103,7 @@ export const getAttendance = async (req: Request, res: Response) => {
         });
  
     } catch (error) {
-        console.error("❌ Error fetching attendance:", error);
+        console.error(" Error fetching attendance:", error);
         res.status(500).json({ status: 500, message: "Internal Server Error" });
     }
 };
@@ -117,13 +116,13 @@ export const markAttendance = async (req: Request, res: Response): Promise<void>
         const userId = req.params.id;
         console.log("User ID:", userId);
 
-        // ✅ Check if the user has already clocked in today
+        //  Check if the user has already clocked in today
         const [existingAttendance]: any = await pool.query(
             "SELECT userId, clockIn, clockOut FROM attendance WHERE userId = ? AND date = CURDATE()",
             [userId]
         );
 
-        // ✅ If user has NOT clocked in today, insert new clock-in record
+        //  If user has NOT clocked in today, insert new clock-in record
         if (existingAttendance.length === 0) {
             const query = `
                 INSERT INTO attendance (
@@ -138,7 +137,7 @@ export const markAttendance = async (req: Request, res: Response): Promise<void>
             return; // Stop further execution to avoid multiple responses
         }
 
-        // ✅ Fetch clock-in details to check clock-in and clock-out values
+        //  Fetch clock-in details to check clock-in and clock-out values
         const [checkAttendance]: any = await pool.query(
             "SELECT clockIn, clockOut FROM attendance WHERE userId = ? AND date = CURDATE()",
             [userId]
@@ -153,7 +152,7 @@ export const markAttendance = async (req: Request, res: Response): Promise<void>
             return;
         }
 
-        // ✅ If user has already clocked out, prevent duplicate clock-out
+        //  If user has already clocked out, prevent duplicate clock-out
         if (checkAttendance[0].clockOut !== null) {
             res.status(400).json({
                 message: "You have already clocked out today!"
@@ -161,7 +160,7 @@ export const markAttendance = async (req: Request, res: Response): Promise<void>
             return;
         }
 
-        // ✅ Now, update clockOut since user is actually clocking out
+        //  Now, update clockOut since user is actually clocking out
         await pool.query(
             `UPDATE attendance 
              SET clockOut = CURRENT_TIMESTAMP()
@@ -169,7 +168,7 @@ export const markAttendance = async (req: Request, res: Response): Promise<void>
             [userId]
         );
 
-        // ✅ Fetch updated clock-in & clock-out time to calculate working hours
+        //  Fetch updated clock-in & clock-out time to calculate working hours
         const [updatedAttendance]: any = await pool.query(
             "SELECT clockIn, clockOut FROM attendance WHERE userId = ? AND date = CURDATE()",
             [userId]
@@ -184,7 +183,7 @@ export const markAttendance = async (req: Request, res: Response): Promise<void>
             return;
         }
 
-        // ✅ Now, Calculate `workingHours` Correctly After `clockOut` Is Set
+        //  Now, Calculate `workingHours` Correctly After `clockOut` Is Set
         const [timeDiffResult]: any = await pool.query(
             `SELECT 
                 LPAD(TIMESTAMPDIFF(HOUR, clockIn, clockOut), 2, '0') AS Hours,
@@ -197,7 +196,7 @@ export const markAttendance = async (req: Request, res: Response): Promise<void>
 
         const { Hours, Minutes } = timeDiffResult[0] || { Hours: "0", Minutes: "00" };
 
-// ✅ Format Hours & Minutes
+//  Format Hours & Minutes
         let formattedWorkingHours = "";
         if (Hours !== "00" && Hours !== "0") {
             formattedWorkingHours += `${Hours} Hour${Hours !== "1" ? "s" : ""} `;
@@ -211,7 +210,7 @@ export const markAttendance = async (req: Request, res: Response): Promise<void>
 
 console.log(`Final Working Hours: ${formattedWorkingHours}`);
 
-// ✅ Finally, Update `workingHours` field
+//  Finally, Update `workingHours` field
     await pool.query(
     `UPDATE attendance 
      SET workingHours = ?
@@ -219,7 +218,7 @@ console.log(`Final Working Hours: ${formattedWorkingHours}`);
     [formattedWorkingHours.trim(), userId] // Trim to remove extra spaces
 );
 
-        // ✅ Fetch final attendance record
+        //  Fetch final attendance record
         const [finalAttendance]: any = await pool.query(
             "SELECT * FROM attendance WHERE userId = ? AND date = CURDATE()",
             [userId]
@@ -231,7 +230,7 @@ console.log(`Final Working Hours: ${formattedWorkingHours}`);
         });
 
     } catch (error) {
-        console.error("❌ Error marking attendance:", error);
+        console.error(" Error marking attendance:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
@@ -259,7 +258,7 @@ export const getTodo = async (req: Request, res: Response): Promise<void> => {
 
         res.status(200).send(query);
     } catch (error) {
-        console.error("❌ Error Fetching Todo!:", error);
+        console.error(" Error Fetching Todo!:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 }
@@ -275,13 +274,13 @@ export const createTodo = async (req: Request, res: Response): Promise<void> => 
         const { id } = req.params;
         const { task, note, startDate, endDate, deadline } = req.body;
 
-        // ✅ Validate required fields before inserting
+        //  Validate required fields before inserting
         if (!id || !task || !startDate || !endDate || !deadline) {
             res.status(400).json({ message: "Missing required fields!" });
             return;
         }
 
-        // ✅ Check if User Exists
+        //  Check if User Exists
         const [user]: any = await pool.query("SELECT id FROM login WHERE id = ?", [id]);
         if (user.length === 0) {
             res.status(404).json({ message: "User not found!" });
@@ -296,7 +295,7 @@ export const createTodo = async (req: Request, res: Response): Promise<void> => 
         const values = [id, task, note || null, startDate, endDate, deadline];
         await pool.query(query, values);
 
-        // ✅ Fetch the newly created Todo
+        //  Fetch the newly created Todo
         const [createdTodo]: any = await pool.query(
             `SELECT t.id, l.name AS employeeName, t.task, t.note, t.startDate, t.endDate, t.deadline
              FROM todo t 
@@ -312,7 +311,7 @@ export const createTodo = async (req: Request, res: Response): Promise<void> => 
         });
 
     } catch (error) {
-        console.error("❌ Error creating todo:", error);
+        console.error(" Error creating todo:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
@@ -368,7 +367,7 @@ export const alterTodo = async (req: Request, res: Response): Promise<void> => {
         });
 
     } catch (error) {
-        console.error("❌ Error Updating Todo:", error);
+        console.error(" Error Updating Todo:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
@@ -393,7 +392,7 @@ export const getAssignProject = async (req: Request, res: Response): Promise<voi
 
         res.status(200).send(result)
     } catch (error) {
-        console.error("❌ Error Fetching Assigned Projects:", error);
+        console.error(" Error Fetching Assigned Projects:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 }
@@ -424,7 +423,7 @@ export const getProgress = async (req: Request, res: Response): Promise<void> =>
 
         res.status(200).send(result)
     } catch (error) {
-        console.error("❌ Error fetching progress:", error);
+        console.error(" Error fetching progress:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 }
@@ -436,37 +435,37 @@ export const getProgress = async (req: Request, res: Response): Promise<void> =>
 //addProgress
 export const addProgress = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { employeeId, projectId } = req.params; // ✅ Get IDs directly from URL parameters
+        const { employeeId, projectId } = req.params; //  Get IDs directly from URL parameters
         const { date, note } = req.body;
 
-        // ✅ Validate required fields before inserting progress
+        //  Validate required fields before inserting progress
         if (!employeeId || !projectId || !date || !note) {
             res.status(400).json({ message: "Missing required fields!" });
             return;
         }
 
-        // ✅ Check if Employee Exists
+        //  Check if Employee Exists
         const [user]: any = await pool.query("SELECT id FROM login WHERE id = ?", [employeeId]);
         if (user.length === 0) {
             res.status(404).json({ message: "User not found!" });
             return;
         }
 
-        // ✅ Check if Project Exists
+        //  Check if Project Exists
         const [project]: any = await pool.query("SELECT id FROM projects WHERE id = ?", [projectId]);
         if (project.length === 0) {
             res.status(404).json({ message: "Project not found!" });
             return;
         }
 
-        // ✅ Insert into `progress` table
+        //  Insert into `progress` table
         const query = `
             INSERT INTO progress (employeeId, projectId, date, note) 
             VALUES (?, ?, ?, ?)
         `;
         await pool.query(query, [employeeId, projectId, date, note]);
 
-        // ✅ Fetch the newly added progress
+        //  Fetch the newly added progress
         const [seeProgress]: any = await pool.query(
             `SELECT prg.employeeId, prg.projectId, l.name AS employeeName, 
              pro.projectName, prg.note, 
@@ -485,7 +484,7 @@ export const addProgress = async (req: Request, res: Response): Promise<void> =>
         });
 
     } catch (error) {
-        console.error("❌ Error adding progress:", error);
+        console.error(" Error adding progress:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
@@ -521,13 +520,13 @@ export const getUsersLeaves = async (req: Request, res: Response): Promise<void>
             return;
         }
 
-        // ✅ Send attendance records with user names
+        //  Send attendance records with user names
         res.status(200).json(["Attendance records fetched successfully",
             ...attendance
         ]);
 
     } catch (error) {
-        console.error("❌ Error fetching attendance:", error);
+        console.error(" Error fetching attendance:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
@@ -569,7 +568,7 @@ export const addLeave = async (req: Request, res: Response): Promise<void> => {
 
         const [result]: any = await pool.query(query, values);
 
-        // ✅ Fetch updated leave records
+        //  Fetch updated leave records
         const [updatedLeaves]: any = await pool.query(
             "SELECT * FROM attendance WHERE userId = ? ORDER BY date DESC",
             [userId]
@@ -583,7 +582,7 @@ export const addLeave = async (req: Request, res: Response): Promise<void> => {
         });
 
     } catch (error) {
-        console.error("❌ Error adding leave:", error);
+        console.error(" Error adding leave:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };  
@@ -607,7 +606,7 @@ export const progressReport = async (req: Request, res: Response): Promise<void>
          FROM progress WHERE progressStatus = 'Y'`;
         let queryParams: any[] = [];
 
-        // ✅ Apply date range filter if both 'fromDate' and 'toDate' are provided
+        //  Apply date range filter if both 'fromDate' and 'toDate' are provided
         if (filter.fromDate && filter.toDate) {
             query += ` AND date BETWEEN ? AND ?`;
             queryParams.push(filter.fromDate, filter.toDate);
@@ -623,7 +622,7 @@ export const progressReport = async (req: Request, res: Response): Promise<void>
         res.status(200).json(result);
 
     } catch (error) {
-        console.error("❌ Error fetching progress:", error);
+        console.error(" Error fetching progress:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
@@ -674,7 +673,7 @@ export const attendanceReport = async (req: Request, res: Response): Promise<voi
         res.status(200).json(result);
 
     } catch (error) {
-        console.error("❌ Error fetching attendance:", error);
+        console.error(" Error fetching attendance:", error);
         res.status(500).json({ status: 500, message: "Internal Server Error" });
     }
 };
@@ -717,7 +716,7 @@ export const taskReport = async (req: Request, res: Response): Promise<void> => 
         res.status(200).json(result);
 
     } catch (error) {
-        console.error("❌ Error Fetching Todo!:", error);
+        console.error(" Error Fetching Todo!:", error);
         res.status(500).json({ message: "Internal Server Error" });
     }
 };
